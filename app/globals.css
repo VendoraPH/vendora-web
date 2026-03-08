@@ -1,0 +1,535 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.5rem;
+
+  --background: 1 0 0;
+  --foreground: 0.098 0 0;
+  --card: 1 0 0;
+  --card-foreground: 0.098 0 0;
+  --popover: 1 0 0;
+  --popover-foreground: 0.098 0 0;
+  --primary: 0.098 0 0;
+  --primary-foreground: 0.985 0 0;
+  --secondary: 0.961 0 0;
+  --secondary-foreground: 0.098 0 0;
+  --muted: 0.961 0 0;
+  --muted-foreground: 0.455 0 0;
+  --accent: 0.961 0 0;
+  --accent-foreground: 0.098 0 0;
+  --destructive: 0.576 0.214 23.037;
+  --destructive-foreground: 0.985 0 0;
+  --border: 0.898 0 0;
+  --input: 0.898 0 0;
+  --ring: 0.098 0 0;
+
+  --chart-1: 0.696 0.181 28.861;
+  --chart-2: 0.714 0.153 193.434;
+  --chart-3: 0.782 0.13 89.429;
+  --chart-4: 0.673 0.172 70.594;
+  --chart-5: 0.693 0.171 300.07;
+
+  --sidebar: 1 0 0;
+  --sidebar-foreground: 0.455 0 0;
+  --sidebar-primary: 0.098 0 0;
+  --sidebar-primary-foreground: 0.985 0 0;
+  --sidebar-accent: 0.961 0 0;
+  --sidebar-accent-foreground: 0.098 0 0;
+  --sidebar-border: 0.922 0 0;
+  --sidebar-ring: 0.098 0 0;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: oklch(var(--background));
+  --color-foreground: oklch(var(--foreground));
+  --color-sidebar-ring: oklch(var(--sidebar-ring));
+  --color-sidebar-border: oklch(var(--sidebar-border));
+  --color-sidebar-accent-foreground: oklch(var(--sidebar-accent-foreground));
+  --color-sidebar-accent: oklch(var(--sidebar-accent));
+  --color-sidebar-primary-foreground: oklch(var(--sidebar-primary-foreground));
+  --color-sidebar-primary: oklch(var(--sidebar-primary));
+  --color-sidebar-foreground: oklch(var(--sidebar-foreground));
+  --color-sidebar: oklch(var(--sidebar));
+  --color-chart-5: oklch(var(--chart-5));
+  --color-chart-4: oklch(var(--chart-4));
+  --color-chart-3: oklch(var(--chart-3));
+  --color-chart-2: oklch(var(--chart-2));
+  --color-chart-1: oklch(var(--chart-1));
+  --color-ring: oklch(var(--ring));
+  --color-input: oklch(var(--input));
+  --color-border: oklch(var(--border));
+  --color-destructive: oklch(var(--destructive));
+  --color-accent-foreground: oklch(var(--accent-foreground));
+  --color-accent: oklch(var(--accent));
+  --color-muted-foreground: oklch(var(--muted-foreground));
+  --color-muted: oklch(var(--muted));
+  --color-secondary-foreground: oklch(var(--secondary-foreground));
+  --color-secondary: oklch(var(--secondary));
+  --color-primary-foreground: oklch(var(--primary-foreground));
+  --color-primary: oklch(var(--primary));
+  --color-popover-foreground: oklch(var(--popover-foreground));
+  --color-popover: oklch(var(--popover));
+  --color-card-foreground: oklch(var(--card-foreground));
+  --color-card: oklch(var(--card));
+}
+
+.dark {
+  /* Vendora Brand Dark Mode — Navy-indigo palette from reference design */
+  /* Page bg: #0b0b1a | Cards: #13132a | Elevated: #1a1a35 | Border: #2d1b69 */
+  --background: 0.08 0.04 275;
+  /* #0b0b1a — very dark navy-indigo page bg */
+  --foreground: 0.97 0.00 0;
+  /* #f5f5f5 — clean white text */
+  --card: 0.12 0.05 275;
+  /* #13132a — dark navy card surfaces */
+  --card-foreground: 0.97 0.00 0;
+  --popover: 0.12 0.05 275;
+  --popover-foreground: 0.97 0.00 0;
+  --primary: 0.55 0.24 285;
+  /* #9333ea — purple-600 accent */
+  --primary-foreground: 0.98 0.01 285;
+  --secondary: 0.15 0.06 275;
+  /* #1a1a35 — elevated surfaces */
+  --secondary-foreground: 0.85 0.02 275;
+  --muted: 0.15 0.06 275;
+  --muted-foreground: 0.73 0.03 275;
+  /* #b4b4d0 — brighter muted text for readability */
+  --accent: 0.15 0.06 275;
+  --accent-foreground: 0.97 0.00 0;
+  --destructive: 0.647 0.199 23.899;
+  --destructive-foreground: 0.985 0 0;
+  --border: 0.25 0.14 280;
+  /* #2d1b69 — purple-accented border */
+  --input: 0.15 0.06 275;
+  --ring: 0.55 0.24 285;
+
+  /* Chart colors — logo-aligned */
+  --chart-1: 0.55 0.24 285;
+  /* Purple */
+  --chart-2: 0.65 0.22 320;
+  /* Magenta/Pink */
+  --chart-3: 0.55 0.18 250;
+  /* Blue-violet */
+  --chart-4: 0.70 0.14 300;
+  /* Light purple */
+  --chart-5: 0.45 0.22 260;
+  /* Deep violet */
+
+  /* Sidebar — matches #110228 */
+  --sidebar: 0.09 0.06 280;
+  --sidebar-foreground: 0.97 0.00 0;
+  --sidebar-primary: 0.55 0.24 285;
+  --sidebar-primary-foreground: 0.98 0.01 285;
+  --sidebar-accent: 0.15 0.06 275;
+  --sidebar-accent-foreground: 0.97 0.00 0;
+  --sidebar-border: 0.25 0.14 280;
+  --sidebar-ring: 0.55 0.24 285;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Floating Animation for Promotional Banner */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes float-delay {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes float-slow {
+
+  0%,
+  100% {
+    transform: translateY(0px) translateX(-50%);
+  }
+
+  50% {
+    transform: translateY(-10px) translateX(-50%);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delay {
+  animation: float-delay 7s ease-in-out infinite 1s;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite 2s;
+}
+
+/* ===== Ecommerce Dark Immersive Theme Animations ===== */
+
+/* Gradient mesh — slow shifting background for hero */
+@keyframes gradient-mesh {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-mesh {
+  background-size: 200% 200%;
+  animation: gradient-mesh 12s ease infinite;
+}
+
+/* Scroll-triggered fade-in-up */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+/* Staggered children — add delay via nth-child */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 540ms; }
+.stagger-children > *:nth-child(11) { animation-delay: 600ms; }
+.stagger-children > *:nth-child(12) { animation-delay: 660ms; }
+
+/* Glow pulse for accents */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.6); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for flash sale */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* Countdown digit tick */
+@keyframes digit-tick {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.animate-digit-tick {
+  animation: digit-tick 0.3s ease-out;
+}
+
+/* Glass card hover glow — light mode */
+.glass-card {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08), 0 0 0 1px rgba(124, 58, 237, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Glass card hover glow — dark mode */
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.dark .glass-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1), 0 0 0 1px rgba(124, 58, 237, 0.1);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-gradient-mesh,
+  .animate-fade-in-up,
+  .animate-glow-pulse,
+  .animate-shimmer::after,
+  .animate-digit-tick,
+  .glass-card {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* SweetAlert2 Enhanced Toast Styles */
+.colored-toast {
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.colored-toast .swal2-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+}
+
+.colored-toast .swal2-html-container {
+  font-size: 12px !important;
+  margin: 2px 0 0 0 !important;
+  padding: 0 8px !important;
+  opacity: 0.85;
+}
+
+.colored-toast .swal2-icon {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 !important;
+  border-width: 2px !important;
+}
+
+.colored-toast .swal2-icon .swal2-icon-content {
+  font-size: 16px !important;
+}
+
+.colored-toast .swal2-icon.swal2-success [class^='swal2-success-line'] {
+  height: 2px !important;
+}
+
+.colored-toast .swal2-icon.swal2-success .swal2-success-ring {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.toast-progress-bar {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%) !important;
+  height: 4px !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+/* Slide animations for toast */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate__animated {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+}
+
+.animate__faster {
+  animation-duration: 0.25s;
+}
+
+.animate__slideInRight {
+  animation-name: slideInRight;
+}
+
+.animate__slideOutRight {
+  animation-name: slideOutRight;
+}
+
+/* SweetAlert2 Modern Popup Styles */
+.swal2-modern-popup {
+  border-radius: 16px !important;
+  padding: 24px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.swal2-modern-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+}
+
+.swal2-modern-confirm {
+  border-radius: 8px !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-modern-confirm:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4) !important;
+}
+
+.swal2-modern-cancel {
+  border-radius: 8px !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-modern-cancel:hover {
+  transform: translateY(-1px) !important;
+  background-color: #4b5563 !important;
+}
+
+/* Icon animation */
+.swal2-icon.swal2-warning {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-success {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+.swal2-icon.swal2-error {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+/* ===== POS Receipt Print Styles ===== */
+@media print {
+
+  /* size: auto removes any fixed page dimensions — thermal printers
+     print continuously so height must be determined by content only. */
+  @page {
+    size: auto;
+    margin: 0;
+  }
+
+  /* Remove ALL page content from layout — prevents blank pages.
+     #thermal-receipt is rendered via Portal as a direct <body> child,
+     so this selector hides every sibling (Next.js root, overlays, etc.). */
+  body > *:not(#thermal-receipt):not(#printable-invoice) {
+    display: none !important;
+  }
+
+  /* Collapse html & body so they only wrap the receipt content */
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Thermal receipt — shown only when printing.
+     height: auto so it shrinks to fit content exactly. */
+  #thermal-receipt {
+    display: block !important;
+    position: static !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 1.5mm !important;
+    background: white !important;
+    color: black !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    overflow: visible !important;
+  }
+
+  #thermal-receipt *,
+  #thermal-receipt .thermal-receipt-content {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Professional invoice for orders */
+  #printable-invoice {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  #printable-invoice table {
+    page-break-inside: avoid !important;
+  }
+}

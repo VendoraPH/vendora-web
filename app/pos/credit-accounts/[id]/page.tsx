@@ -1,0 +1,632 @@
+"use client"
+
+import { useState, use } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
+    ArrowLeft,
+    Phone,
+    Mail,
+    User,
+    Calendar,
+    MapPin,
+    History,
+    AlertCircle,
+    Banknote,
+    Plus,
+    CheckCircle2,
+    Loader2,
+    BookOpen,
+    TrendingDown,
+    TrendingUp,
+} from "lucide-react"
+import { creditService } from "@/services"
+import type { ApiCredit } from "@/services"
+import Swal from "sweetalert2"
+import { useOfflineData } from "@/hooks/use-offline-data"
+import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
+import { getOnlineStatus } from "@/lib/sync-service"
+
+// Types for UI display
+interface CreditAccount {
+    id: number
+    customer: {
+        id: number
+        name: string
+        phone?: string
+        email?: string
+        address?: string
+        memberSince?: string
+    }
+    totalAmount: number
+    paidAmount: number
+    remainingBalance: number
+    creditLimit?: number
+    dueDate?: string
+    status: 'active' | 'overdue' | 'paid' | 'defaulted'
+    createdAt: string
+    notes?: string
+}
+
+// ---------------------------------------------------------------------------
+// Dummy data — fallback when API credits endpoint is unavailable
+// ---------------------------------------------------------------------------
+const DUMMY_CREDITS: Record<string, CreditAccount> = {
+    "1": {
+        id: 1,
+        customer: { id: 1, name: "Juan dela Cruz", phone: "09171234567", email: "juan@email.com", address: "123 Rizal St, Manila" },
+        totalAmount: 5000, paidAmount: 2000, remainingBalance: 3000,
+        status: "active", createdAt: "2026-02-01T08:00:00Z",
+    },
+    "2": {
+        id: 2,
+        customer: { id: 2, name: "Maria Santos", phone: "09281234567", email: "maria@email.com", address: "456 Mabini Ave, Quezon City" },
+        totalAmount: 8500, paidAmount: 8500, remainingBalance: 0,
+        status: "paid", createdAt: "2026-01-15T08:00:00Z",
+    },
+    "3": {
+        id: 3,
+        customer: { id: 3, name: "Pedro Reyes", phone: "09351234567", address: "789 Luna St, Cebu City" },
+        totalAmount: 12000, paidAmount: 3000, remainingBalance: 9000,
+        dueDate: "2026-03-01T00:00:00Z",
+        status: "overdue", createdAt: "2026-01-10T08:00:00Z",
+    },
+    "4": {
+        id: 4,
+        customer: { id: 4, name: "Ana Gomez", phone: "09461234567", email: "ana@email.com" },
+        totalAmount: 3500, paidAmount: 1000, remainingBalance: 2500,
+        status: "active", createdAt: "2026-02-20T08:00:00Z",
+    },
+}
+
+// ---------------------------------------------------------------------------
+// Ledger entry type
+// ---------------------------------------------------------------------------
+interface LedgerEntry {
+    date: string
+    description: string
+    debit: number | null
+    credit: number | null
+    balance: number
+}
+
+function buildLedgerEntries(account: CreditAccount): LedgerEntry[] {
+    const entries: LedgerEntry[] = []
+
+    // Opening debit: credit issued
+    entries.push({
+        date: account.createdAt,
+        description: "Credit Issued",
+        debit: account.totalAmount,
+        credit: null,
+        balance: account.totalAmount,
+    })
+
+    // Credit: total payments received
+    if (account.paidAmount > 0) {
+        entries.push({
+            date: account.notes ? account.createdAt : new Date().toISOString(),
+            description: "Payment Received",
+            debit: null,
+            credit: account.paidAmount,
+            balance: account.remainingBalance,
+        })
+    }
+
+    return entries
+}
+
+function mapApiCredit(c: ApiCredit): CreditAccount {
+    const status: CreditAccount["status"] =
+        c.status === "active" || c.status === "overdue" || c.status === "paid" || c.status === "defaulted"
+            ? c.status
+            : "active"
+
+    return {
+        id: c.id,
+        customer: {
+            id: c.customer?.id ?? c.customer_id,
+            name: c.customer?.name ?? `Customer #${c.customer_id}`,
+            phone: c.customer?.phone ?? undefined,
+            email: c.customer?.email ?? undefined,
+            address: c.customer?.address ?? undefined,
+        },
+        totalAmount: Number(c.amount) || 0,
+        paidAmount: Number(c.paid_amount) || 0,
+        remainingBalance: Number(c.balance) || 0,
+        creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
+        dueDate: c.due_date ?? undefined,
+        status,
+        createdAt: c.created_at,
+        notes: c.notes ?? undefined,
+    }
+}
+
+export default function CreditAccountDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    const router = useRouter()
+    const resolvedParams = use(params)
+    const accountId = resolvedParams.id
+
+    const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false)
+    const [paymentAmount, setPaymentAmount] = useState("")
+    const [paymentMethod, setPaymentMethod] = useState("")
+    const [paymentNotes, setPaymentNotes] = useState("")
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+    const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'payments'>('overview')
+
+    const { data: rawAccount, isLoading, isStale, lastSyncedAt, error, refresh } = useOfflineData<any>(
+        `credit-account-${accountId}`,
+        () => creditService.getById(accountId),
+        { staleAfterMinutes: 5 }
+    )
+    const account = rawAccount ? mapApiCredit(rawAccount) : (DUMMY_CREDITS[accountId] ?? null)
+
+    const handleSubmitPayment = async () => {
+        if (!account || !paymentAmount || !paymentMethod) return
+
+        if (!getOnlineStatus()) {
+            Swal.fire({ icon: "info", title: "Unavailable Offline", text: "Payments cannot be recorded while offline." })
+            return
+        }
+
+        const amount = Math.round(parseFloat(paymentAmount))
+        if (isNaN(amount) || amount <= 0) {
+            Swal.fire({ icon: "error", title: "Invalid Amount", text: "Please enter a valid payment amount." })
+            return
+        }
+        if (amount > account.remainingBalance) {
+            Swal.fire({ icon: "error", title: "Amount Too High", text: `Payment cannot exceed remaining balance of ₱${account.remainingBalance.toLocaleString()}.` })
+            return
+        }
+
+        setIsSubmittingPayment(true)
+        try {
+            const method = paymentMethod === "bank" ? "online" : paymentMethod as "cash" | "card" | "online"
+            await creditService.recordPayment(account.id, { amount, method })
+
+            Swal.fire({
+                icon: "success",
+                title: "Payment Recorded",
+                text: `₱${amount.toLocaleString()} payment recorded for ${account.customer.name}.`,
+                timer: 2000,
+                showConfirmButton: false,
+            })
+
+            setIsAddPaymentOpen(false)
+            refresh() // Refresh data
+        } catch (err: any) {
+            console.error("Failed to record payment:", err)
+            const message = err?.response?.data?.message || err?.message || "Failed to record payment."
+            Swal.fire({ icon: "error", title: "Payment Failed", text: message })
+        } finally {
+            setIsSubmittingPayment(false)
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh] gap-3 text-gray-500 dark:text-[#b4b4d0]">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                <span className="text-sm font-medium">Loading credit account...</span>
+            </div>
+        )
+    }
+
+    if (!account) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[50vh]">
+                <AlertCircle className="w-12 h-12 text-gray-300 dark:text-[#9898b8] mb-3" />
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+                    {error ? "Error Loading Account" : "Account Not Found"}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-[#b4b4d0] mb-4">
+                    {error || "This credit account doesn't exist."}
+                </p>
+                <Button asChild size="sm">
+                    <Link href="/pos/credit-accounts">
+                        <ArrowLeft className="w-4 h-4 mr-1.5" />
+                        Back
+                    </Link>
+                </Button>
+            </div>
+        )
+    }
+
+    const getStatusBadge = (status: CreditAccount['status']) => {
+        const variants = {
+            active: { className: "bg-blue-50 text-blue-700", text: "Active" },
+            paid: { className: "bg-emerald-50 text-emerald-700", text: "Paid" },
+            overdue: { className: "bg-red-50 text-red-700", text: "Overdue" },
+            defaulted: { className: "bg-gray-100 text-gray-700 dark:text-[#e0e0f0]", text: "Defaulted" },
+        }
+        const config = variants[status]
+        return (
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${config.className}`}>
+                {config.text}
+            </span>
+        )
+    }
+
+    const formatDate = (dateStr: string) => {
+        return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    }
+
+    return (
+        <div className="space-y-4 pb-6">
+            <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
+            {/* Compact Header */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push('/pos/credit-accounts')}
+                        className="h-8 w-8 rounded-full border border-gray-200 dark:border-[#2d1b69]"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-lg font-bold text-gray-900 dark:text-white">{account.customer.name}</h1>
+                            {getStatusBadge(account.status)}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-[#b4b4d0]">{account.customer.phone}</p>
+                    </div>
+                </div>
+                {account.remainingBalance > 0 && (
+                    <Button
+                        size="sm"
+                        onClick={() => setIsAddPaymentOpen(true)}
+                        className="bg-purple-600 hover:bg-purple-700 h-8"
+                    >
+                        <Plus className="w-3.5 h-3.5 mr-1" />
+                        Add Payment
+                    </Button>
+                )}
+            </div>
+
+            {/* Compact Summary */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] text-sm">
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-500 dark:text-[#b4b4d0]">Total:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">₱{account.totalAmount.toLocaleString()}</span>
+                </div>
+                <div className="w-px h-4 bg-gray-200 dark:bg-[#2d1b69] hidden sm:block" />
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-500 dark:text-[#b4b4d0]">Paid:</span>
+                    <span className="font-semibold text-emerald-600">₱{account.paidAmount.toLocaleString()}</span>
+                </div>
+                <div className="w-px h-4 bg-gray-200 dark:bg-[#2d1b69] hidden sm:block" />
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-500 dark:text-[#b4b4d0]">Balance:</span>
+                    <span className={`font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        ₱{account.remainingBalance.toLocaleString()}
+                    </span>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="border-b border-gray-200 dark:border-[#2d1b69]">
+                <nav className="flex gap-4">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: User },
+                        { id: 'ledger', label: 'Ledger', icon: BookOpen },
+                        { id: 'payments', label: 'Payments', icon: History },
+                    ].map((tab) => {
+                        const Icon = tab.icon
+                        const isActive = activeTab === tab.id
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                                className={`flex items-center gap-1.5 py-2 px-1 border-b-2 text-sm font-medium transition-colors ${isActive
+                                    ? 'border-purple-600 text-purple-600'
+                                    : 'border-transparent text-gray-500 dark:text-[#b4b4d0] hover:text-gray-700 dark:hover:text-white'
+                                    }`}
+                            >
+                                <Icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        )
+                    })}
+                </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div>
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-4">
+                        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Customer Information</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
+                                    <User className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
+                                    <span>{account.customer.name}</span>
+                                </div>
+                                {account.customer.phone && (
+                                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
+                                        <Phone className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
+                                        <span>{account.customer.phone}</span>
+                                    </div>
+                                )}
+                                {account.customer.email && (
+                                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
+                                        <Mail className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
+                                        <span>{account.customer.email}</span>
+                                    </div>
+                                )}
+                                {account.customer.address && (
+                                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0] sm:col-span-2">
+                                        <MapPin className="w-4 h-4 text-gray-400 dark:text-[#9898b8] flex-shrink-0" />
+                                        <span>{account.customer.address}</span>
+                                    </div>
+                                )}
+                                {account.customer.memberSince && (
+                                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
+                                        <Calendar className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
+                                        <span>Member since {formatDate(account.customer.memberSince)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Credit Details</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Total Credit</span>
+                                    <div className="text-lg font-bold text-gray-900 dark:text-white">₱{account.totalAmount.toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Total Paid</span>
+                                    <div className="text-lg font-bold text-emerald-600">₱{account.paidAmount.toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Remaining</span>
+                                    <div className={`text-lg font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                        ₱{account.remainingBalance.toLocaleString()}
+                                    </div>
+                                </div>
+                                {account.creditLimit && (
+                                    <div>
+                                        <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Credit Limit</span>
+                                        <div className="text-lg font-bold text-gray-900 dark:text-white">₱{account.creditLimit.toLocaleString()}</div>
+                                    </div>
+                                )}
+                                {account.dueDate && (
+                                    <div>
+                                        <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Due Date</span>
+                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(account.dueDate)}</div>
+                                    </div>
+                                )}
+                                <div>
+                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Created</span>
+                                    <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(account.createdAt)}</div>
+                                </div>
+                            </div>
+                            {account.notes && (
+                                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
+                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Notes</span>
+                                    <p className="text-sm text-gray-700 dark:text-[#e0e0f0] mt-1">{account.notes}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Ledger Tab */}
+                {activeTab === 'ledger' && (() => {
+                    const entries = buildLedgerEntries(account)
+                    const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                    return (
+                        <div className="space-y-4">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                        <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                                        Total Debit
+                                    </div>
+                                    <div className="text-base font-bold text-red-600">{fmt(account.totalAmount)}</div>
+                                </div>
+                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                        <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                                        Total Credit
+                                    </div>
+                                    <div className="text-base font-bold text-emerald-600">{fmt(account.paidAmount)}</div>
+                                </div>
+                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                        <Banknote className="w-3.5 h-3.5 text-orange-500" />
+                                        Balance Due
+                                    </div>
+                                    <div className={`text-base font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                        {fmt(account.remainingBalance)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ledger Table — Desktop */}
+                            <div className="hidden sm:block bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-[#2d1b69]">
+                                    <BookOpen className="w-4 h-4 text-purple-500" />
+                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        Account Ledger — {account.customer.name}
+                                    </span>
+                                </div>
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-[#1a1a35] border-b border-gray-100 dark:border-[#2d1b69]">
+                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Date</th>
+                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Description</th>
+                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-red-500 uppercase tracking-wide">Debit (₱)</th>
+                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-emerald-600 uppercase tracking-wide">Credit (₱)</th>
+                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Balance (₱)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {entries.map((entry, i) => (
+                                            <tr key={i} className="border-b border-gray-50 dark:border-[#2d1b69]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a35] transition-colors">
+                                                <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0] whitespace-nowrap">{fmtDate(entry.date)}</td>
+                                                <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{entry.description}</td>
+                                                <td className="py-3 px-4 text-right font-semibold text-red-600">
+                                                    {entry.debit !== null ? fmt(entry.debit) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-semibold text-emerald-600">
+                                                    {entry.credit !== null ? fmt(entry.credit) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                                                </td>
+                                                <td className={`py-3 px-4 text-right font-bold ${entry.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                    {fmt(entry.balance)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {/* Balance Due footer row */}
+                                        <tr className={`border-t-2 ${account.remainingBalance > 0 ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10'}`}>
+                                            <td colSpan={4} className={`py-3 px-4 text-sm font-bold ${account.remainingBalance > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                                                {account.remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
+                                            </td>
+                                            <td className={`py-3 px-4 text-right text-base font-extrabold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                {fmt(account.remainingBalance)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Ledger Cards — Mobile */}
+                            <div className="sm:hidden space-y-2">
+                                {entries.map((entry, i) => (
+                                    <div key={i} className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-sm font-medium text-gray-900 dark:text-white">{entry.description}</span>
+                                            <span className="text-xs text-gray-400 dark:text-[#9898b8]">{fmtDate(entry.date)}</span>
+                                        </div>
+                                        <div className="flex gap-4 text-xs mt-1">
+                                            <span className="text-red-500">DR: {entry.debit !== null ? fmt(entry.debit) : '—'}</span>
+                                            <span className="text-emerald-600">CR: {entry.credit !== null ? fmt(entry.credit) : '—'}</span>
+                                            <span className={`font-semibold ml-auto ${entry.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                Bal: {fmt(entry.balance)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className={`rounded-lg border-2 p-3 text-center ${account.remainingBalance > 0 ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/10'}`}>
+                                    <div className={`text-xs font-semibold mb-0.5 ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                        {account.remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
+                                    </div>
+                                    <div className={`text-lg font-extrabold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                        {fmt(account.remainingBalance)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })()}
+
+                {/* Payments Tab */}
+                {activeTab === 'payments' && (
+                    <div className="bg-white dark:bg-[#13132a] p-8 text-center rounded-lg border border-dashed border-gray-200 dark:border-[#2d1b69]">
+                        <Banknote className="w-10 h-10 text-gray-300 dark:text-[#9898b8] mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 dark:text-[#b4b4d0]">
+                            Payment history is tracked in the credit balance above.
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-[#9898b8] mt-1">
+                            Paid: ₱{account.paidAmount.toLocaleString()} of ₱{account.totalAmount.toLocaleString()}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Add Payment Dialog */}
+            <Dialog open={isAddPaymentOpen} onOpenChange={setIsAddPaymentOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Record Payment</DialogTitle>
+                        <DialogDescription>
+                            Balance: ₱{account.remainingBalance.toLocaleString()}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="paymentAmount" className="text-sm">Amount (₱)</Label>
+                            <Input
+                                id="paymentAmount"
+                                type="number"
+                                placeholder="0.00"
+                                value={paymentAmount}
+                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                className="h-10"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm">Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="Select method" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="cash">Cash</SelectItem>
+                                    <SelectItem value="card">Card</SelectItem>
+                                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="paymentNotes" className="text-sm">Notes (optional)</Label>
+                            <Input
+                                id="paymentNotes"
+                                placeholder="Add notes..."
+                                value={paymentNotes}
+                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                className="h-10"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsAddPaymentOpen(false)} size="sm">
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-purple-600 hover:bg-purple-700"
+                            disabled={!paymentAmount || !paymentMethod || isSubmittingPayment}
+                            onClick={handleSubmitPayment}
+                            size="sm"
+                        >
+                            {isSubmittingPayment ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                            )}
+                            {isSubmittingPayment ? "Processing..." : "Record Payment"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
+}
