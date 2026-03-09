@@ -716,23 +716,6 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                         </div>
                                     </div>
 
-                                    {/* Currency */}
-                                    <div className="space-y-2">
-                                        <p className="text-xs text-white/70">Currency</p>
-                                        <Select
-                                            value={formData.currency}
-                                            onValueChange={(value) => handleInputChange("currency", value)}
-                                        >
-                                            <SelectTrigger className="rounded-xl bg-white/10 border-white/10 text-white" suppressHydrationWarning>
-                                                <SelectValue placeholder="Currency" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="PHP">PHP</SelectItem>
-                                                <SelectItem value="USD">USD</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
                                     {/* Unit */}
                                     <div className="space-y-2">
                                         <p className="text-xs text-white/70">Unit</p>
