@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { categoryService } from "@/services"
 import type { ApiProduct, ApiCategory } from "@/services"
 import { tokenManager } from "@/lib/axios-client"
+import { API_CONFIG } from "@/config/api.config"
 import { db } from "@/lib/db"
 import { syncService } from "@/lib/sync-service"
 import { localDb } from "@/lib/local-first-service"
@@ -181,13 +182,17 @@ const getErrorMessage = (error: unknown): { message: string; isAuthError: boolea
 }
 
 /**
+ * Derive the storage base URL from the API base URL (strip trailing /api)
+ */
+const STORAGE_BASE_URL = (API_CONFIG.BASE_URL || '').replace(/\/api\/?$/, '')
+
+/**
  * Resolve image URL — handles relative paths from API storage
  */
 const resolveImageUrl = (url: string | null | undefined): string | null => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  const base = 'https://vendora-api.abedubas.dev'
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) return url
+  return `${STORAGE_BASE_URL}${url.startsWith('/') ? '' : '/storage/'}${url}`
 }
 
 /**
