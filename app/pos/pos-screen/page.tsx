@@ -624,8 +624,8 @@ export default function VendoraPOS() {
 
       // Split creditor full name into first/middle/last for the backend
       const nameParts = resolvedCreditName.trim().split(/\s+/);
-      const creditFirstName = nameParts[0] || '';
-      const creditLastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      const creditFirstName: string = nameParts[0] ?? '';
+      const creditLastName: string = nameParts.length > 1 ? (nameParts[nameParts.length - 1] ?? '') : '';
       const creditMiddleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : undefined;
 
       const transactionUuid = await syncService.saveTransactionLocally({
