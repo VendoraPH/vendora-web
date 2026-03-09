@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button"
 import {
   Calculator,
-  DollarSign,
   TrendingUp,
   TrendingDown,
   FileText,
@@ -90,7 +89,7 @@ export default function AccountingPage() {
               </p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
-              <DollarSign className="h-6 w-6 text-green-600" />
+              <span className="h-6 w-6 text-green-600 font-bold text-xl flex items-center justify-center">₱</span>
             </div>
           </div>
         </div>

@@ -3,7 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { DollarSign, Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2 } from "lucide-react"
+import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2 } from "lucide-react"
+
+const PesoSign = ({ className }: { className?: string }) => (
+  <span className={`font-bold flex items-center justify-center ${className ?? ''}`}>₱</span>
+)
 import { DashboardStats } from "@/components/pos/DashboardStats"
 import { SalesTrendChart } from "@/components/pos/SalesTrendChart"
 import { OrdersByChannelChart } from "@/components/pos/OrdersByChannelChart"
@@ -57,7 +61,7 @@ export default function DesktopDashboard() {
       value: `₱ ${kpis.total_sales.toLocaleString()}`,
       change: "+8.4%", // Note: API doesn't provide percentage change
       changeType: "positive" as const,
-      icon: DollarSign,
+      icon: PesoSign,
     },
     {
       title: "Total Orders",
