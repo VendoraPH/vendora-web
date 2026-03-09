@@ -36,7 +36,6 @@ import {
   productService,
   customerService,
   orderService,
-  paymentService,
   categoryService,
   storeService,
   type ApiProduct,
