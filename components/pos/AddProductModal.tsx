@@ -701,7 +701,7 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                     </div>
 
                                     {/* Selling Price (auto-calculated, read-only) */}
-                                    <div className="space-y-2 col-span-2">
+                                    <div className="space-y-2">
                                         <p className="text-xs text-white/70">Selling Price</p>
                                         <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
                                             <DollarSign className="h-4 w-4 text-emerald-400/70" />
