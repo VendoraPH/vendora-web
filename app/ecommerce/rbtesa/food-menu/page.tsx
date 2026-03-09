@@ -764,9 +764,9 @@ export default function FoodMenuPage() {
             await Promise.all(
                 reservations.map((r) =>
                     foodMenuService.createReservation({
-                        menu_item_id: Number(r.food.id),
+                        food_menu_item_id: Number(r.food.id),
                         customer_name: buyer.name,
-                        phone: "N/A",
+                        customer_phone: "N/A",
                         servings: r.qty,
                     })
                 )
