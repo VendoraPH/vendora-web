@@ -9,12 +9,18 @@ import { endpoints } from "@/lib/api-endpoints"
 
 export interface FoodMenuItem {
   id: number
+  user_id?: number
+  store_id?: number | null
   name: string
   description: string
   category: string
   price: number
+  currency?: string
+  image?: string | null
   total_servings: number
   reserved_servings: number
+  remaining_servings?: number
+  is_sold_out?: boolean
   is_available: boolean
   created_at?: string
   updated_at?: string
@@ -51,21 +57,24 @@ export interface PaginatedFoodMenuResponse {
 
 export interface FoodMenuReservation {
   id: number
-  menu_item_id: number
-  menu_item_name: string
+  food_menu_item_id: number
+  user_id: number
+  customer_id?: number | null
   customer_name: string
-  phone: string
+  customer_phone?: string | null
   servings: number
-  notes: string
-  total: number
-  status: "pending" | "confirmed" | "cancelled"
+  status: string
+  notes?: string | null
+  reserved_at?: string | null
+  food_menu_item?: FoodMenuItem
   created_at?: string
+  updated_at?: string
 }
 
 export interface ReservationCreatePayload {
-  menu_item_id: number
+  food_menu_item_id: number
   customer_name: string
-  phone: string
+  customer_phone?: string
   servings: number
   notes?: string
 }
@@ -102,10 +111,6 @@ export const foodMenuService = {
     return api.delete(endpoints.foodMenu.delete(id))
   },
 
-  toggleAvailability: async (id: number): Promise<FoodMenuItem> => {
-    return api.patch<FoodMenuItem>(endpoints.foodMenu.toggleAvailability(id))
-  },
-
   getCategories: async (): Promise<string[]> => {
     return api.get<string[]>(endpoints.foodMenu.categories())
   },
@@ -121,6 +126,6 @@ export const foodMenuService = {
   },
 
   updateReservationStatus: async (id: number, status: string): Promise<FoodMenuReservation> => {
-    return api.patch<FoodMenuReservation>(endpoints.foodMenu.reservations.updateStatus(id), { status })
+    return api.put<FoodMenuReservation>(endpoints.foodMenu.reservations.update(id), { status })
   },
 }
