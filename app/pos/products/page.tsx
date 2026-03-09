@@ -55,6 +55,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  TrendingUp,
+  Lock,
+  DollarSign,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -228,8 +231,8 @@ function DesktopInventoryLayout() {
   const [isActiveProduct, setIsActiveProduct] = useState(true)
   const [isEcommerceProduct, setIsEcommerceProduct] = useState(true)
   const [isBulkPricing, setIsBulkPricing] = useState(false)
-  const [useMarkup, setUseMarkup] = useState(false)
-  const [markup, setMarkup] = useState<number | "">(0)
+  const [markupType, setMarkupType] = useState<'percentage' | 'fixed'>('percentage')
+  const [markupValue, setMarkupValue] = useState<number>(0)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null)
   const [formData, setFormData] = useState<ProductForm>(initialFormState)
@@ -308,8 +311,8 @@ function DesktopInventoryLayout() {
     setIsActiveProduct(true)
     setIsEcommerceProduct(true)
     setIsBulkPricing(false)
-    setUseMarkup(false)
-    setMarkup(0)
+    setMarkupType('percentage')
+    setMarkupValue(0)
     setImagePreview(null)
     setImageFile(null)
     setImageName("")
@@ -425,6 +428,22 @@ function DesktopInventoryLayout() {
     }
   }, [imagePreview])
 
+  // Auto-calculate selling price from cost + markup
+  useEffect(() => {
+    const purchaseCost = formData.cost
+    if (purchaseCost > 0 && markupValue >= 0) {
+      let sellingPrice: number
+      if (markupType === 'percentage') {
+        sellingPrice = purchaseCost * (1 + markupValue / 100)
+      } else {
+        sellingPrice = purchaseCost + markupValue
+      }
+      setFormData(prev => ({ ...prev, price: Number(sellingPrice.toFixed(2)) }))
+    } else if (purchaseCost <= 0) {
+      setFormData(prev => ({ ...prev, price: 0 }))
+    }
+  }, [formData.cost, markupType, markupValue])
+
   useEffect(() => {
     let active = true
     let stream: MediaStream | null = null
@@ -534,15 +553,14 @@ function DesktopInventoryLayout() {
     setImageFile(null)
     setImageName("")
     setImageSize(null)
-    // Compute markup from existing cost/price
+    // Compute markup percentage from existing cost/price
     const existingCost = product.cost || 0
     const existingPrice = product.price || 0
+    setMarkupType('percentage')
     if (existingCost > 0 && existingPrice > existingCost) {
-      setUseMarkup(true)
-      setMarkup(Math.round(((existingPrice - existingCost) / existingCost) * 100 * 100) / 100)
+      setMarkupValue(Math.round(((existingPrice - existingCost) / existingCost) * 100 * 100) / 100)
     } else {
-      setUseMarkup(false)
-      setMarkup(0)
+      setMarkupValue(0)
     }
     setIsAddProductOpen(true)
   }
@@ -1578,106 +1596,82 @@ function DesktopInventoryLayout() {
 
                 {/* Pricing */}
                 <section className="space-y-4 sm:rounded-2xl sm:border sm:border-white/10 sm:bg-white/[0.04] sm:p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Pricing</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-white/50">Use Markup</span>
-                      <Switch
-                        checked={useMarkup}
-                        onCheckedChange={(checked) => {
-                          setUseMarkup(checked)
-                          if (!checked) {
-                            setMarkup(0)
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <h3 className="text-sm font-semibold">Pricing</h3>
                   <div className="grid grid-cols-2 gap-3">
-                    {/* Cost — only shown when markup is enabled */}
-                    {useMarkup && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-white/70">Cost *</p>
-                        <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                          <span className="text-white/50 text-sm font-medium">₱</span>
-                          <Input
-                            className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                            placeholder="0.00"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formData.cost || ""}
-                            onChange={(e) => {
-                              const cost = Number(e.target.value)
-                              handleInputChange("cost", cost)
-                              if (markup !== "" && markup > 0 && cost > 0) {
-                                const newPrice = Math.round(cost * (1 + (markup as number) / 100) * 100) / 100
-                                handleInputChange("price", newPrice)
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Markup % — only shown when enabled */}
-                    {useMarkup && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-white/70">Markup %</p>
-                        <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                          <span className="text-white/50 text-sm font-medium">%</span>
-                          <Input
-                            className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                            placeholder="0"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={markup === 0 ? "" : markup}
-                            onChange={(e) => {
-                              const pct = e.target.value === "" ? "" : Number(e.target.value)
-                              setMarkup(pct)
-                              const cost = formData.cost || 0
-                              if (pct !== "" && cost > 0) {
-                                const newPrice = Math.round(cost * (1 + (pct as number) / 100) * 100) / 100
-                                handleInputChange("price", newPrice)
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Selling Price */}
-                    <div className={`space-y-2 ${useMarkup ? "col-span-2" : ""}`}>
-                      <p className="text-xs text-white/70">Selling Price *</p>
+                    {/* Purchase Cost */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-white/70">Purchase Cost *</p>
                       <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                        <span className="text-white/50 text-sm font-medium">₱</span>
+                        <DollarSign className="h-4 w-4 text-white/50" />
                         <Input
                           className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                           placeholder="0.00"
                           type="number"
                           min="0"
                           step="0.01"
-                          value={formData.price || ""}
-                          onChange={(e) => {
-                            const price = Number(e.target.value)
-                            handleInputChange("price", price)
-                            if (useMarkup) {
-                              const cost = formData.cost || 0
-                              if (cost > 0 && price > cost) {
-                                setMarkup(Math.round(((price - cost) / cost) * 100 * 100) / 100)
-                              } else {
-                                setMarkup("")
-                              }
-                            }
-                          }}
+                          value={formData.cost || ""}
+                          onChange={(e) => handleInputChange("cost", Number(e.target.value))}
                         />
                       </div>
-                      {useMarkup && formData.cost > 0 && formData.price > 0 && markup !== "" && Number(markup) > 0 && (
-                        <p className="text-xs text-purple-400">
-                          ₱{formData.cost.toFixed(2)} cost + {markup}% = ₱{formData.price.toFixed(2)} selling price
-                        </p>
-                      )}
+                    </div>
+
+                    {/* Markup */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-white/70">Mark Up *</p>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
+                              markupType === 'percentage'
+                                ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
+                                : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
+                            }`}
+                            onClick={() => setMarkupType('percentage')}
+                          >
+                            %
+                          </button>
+                          <button
+                            type="button"
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
+                              markupType === 'fixed'
+                                ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
+                                : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
+                            }`}
+                            onClick={() => setMarkupType('fixed')}
+                          >
+                            Fixed
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
+                        <TrendingUp className="h-4 w-4 text-white/50" />
+                        <Input
+                          className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                          placeholder={markupType === 'percentage' ? "0" : "0.00"}
+                          type="number"
+                          min="0"
+                          step={markupType === 'percentage' ? "1" : "0.01"}
+                          value={markupValue || ""}
+                          onChange={(e) => setMarkupValue(Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Selling Price (auto-calculated, read-only) */}
+                    <div className="space-y-2 col-span-2">
+                      <p className="text-xs text-white/70">Selling Price</p>
+                      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
+                        <DollarSign className="h-4 w-4 text-emerald-400/70" />
+                        <Input
+                          className="border-0 bg-transparent text-emerald-300 font-medium placeholder:text-emerald-400/30 focus-visible:ring-0 focus-visible:ring-offset-0"
+                          placeholder="Auto-calculated"
+                          value={formData.price > 0 ? formData.price.toFixed(2) : ""}
+                          readOnly
+                          tabIndex={-1}
+                        />
+                        <Lock className="h-3 w-3 text-emerald-400/40" />
+                      </div>
                     </div>
 
                     {/* Currency */}
