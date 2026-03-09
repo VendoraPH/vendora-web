@@ -623,6 +623,12 @@ export default function VendoraPOS() {
         ].filter(Boolean) as Array<{ method: 'cash' | 'card' | 'online'; amount: number }>
         : undefined;
 
+      // Split creditor full name into first/middle/last for the backend
+      const nameParts = resolvedCreditName.trim().split(/\s+/);
+      const creditFirstName = nameParts[0] || '';
+      const creditLastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      const creditMiddleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : undefined;
+
       const transactionUuid = await syncService.saveTransactionLocally({
         customer_id: customerId || 1, // Fallback if Walk-in customer ID is not set for credit transactions
         customer_name: customerName,
@@ -639,11 +645,19 @@ export default function VendoraPOS() {
         tax: totals.tax,
         delivery_fee: totals.deliveryFee,
         total: totals.total,
-        payment_method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod as "cash" | "card" | "online", // Credit is stored separately
+        payment_method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod as "cash" | "card" | "online",
         payment_methods: paymentMethods,
         amount_tendered: isCredit ? amountDue : paid,
         change: isCredit ? 0 : change,
         store_id: selectedStore || undefined,
+        is_credit: isCredit || undefined,
+        credit_customer: isCredit ? {
+          first_name: creditFirstName,
+          last_name: creditLastName,
+          middle_name: creditMiddleName,
+          contact_number: resolvedCreditPhone.trim() || undefined,
+          address: resolvedCreditAddress.trim() || undefined,
+        } : undefined,
         notes: isCredit
           ? [
             resolvedCreditPhone.trim() ? `Contact: ${resolvedCreditPhone.trim()}` : '',
@@ -708,74 +722,10 @@ export default function VendoraPOS() {
       const txnNumber = transactionUuid.substring(0, 8).toUpperCase();
       const now = new Date();
 
-      // Create credit record via API when this is a credit transaction
-      if (isCredit) {
-        if (!syncService.getOnlineStatus()) {
-          console.warn('[Credit] Offline — credit record will need to be created manually when back online');
-        } else {
-          try {
-            let creditCustomerId = customerId;
-
-            // If creditor name is provided but no existing customer is selected, create a new customer
-            if (resolvedCreditName.trim() && !selectedCustomerId) {
-              try {
-                const newCustomer = await customerService.create({
-                  name: resolvedCreditName.trim(),
-                  phone: resolvedCreditPhone.trim() || undefined,
-                  status: "active",
-                } as any);
-                creditCustomerId = newCustomer.id;
-                customerId = creditCustomerId;
-                customerName = resolvedCreditName.trim();
-                console.log(`[Credit] Created new customer: ${creditCustomerId}`);
-              } catch (custErr: any) {
-                console.error('[Credit] Failed to create customer:', {
-                  status: custErr?.response?.status,
-                  data: JSON.stringify(custErr?.response?.data),
-                  message: custErr?.message,
-                });
-                // Fallback: use walk-in customer ID (same as local save fallback)
-                if (!creditCustomerId) creditCustomerId = 1;
-              }
-            }
-
-            // Final fallback — ensure a valid customer_id
-            if (!creditCustomerId) creditCustomerId = 1;
-
-            const creditPayload = {
-              customer_id: creditCustomerId,
-              amount: Math.round(totals.total),
-              paid_at: paidAtStr,
-              method: "cash" as const,
-              note: [
-                resolvedCreditPhone.trim() ? `Contact: ${resolvedCreditPhone.trim()}` : '',
-                resolvedCreditAddress.trim() ? `Address: ${resolvedCreditAddress.trim()}` : '',
-                resolvedCreditDueDate.trim() ? `Due: ${resolvedCreditDueDate.trim()}` : '',
-              ].filter(Boolean).join(' | ') || undefined,
-            };
-
-            console.log('[Credit] Creating credit record via POST /payments/credit:', JSON.stringify(creditPayload));
-            await paymentService.recordCredit(creditPayload);
-            console.log(`✅ Credit record created for customer ${creditCustomerId}`);
-          } catch (creditErr: any) {
-            const status = creditErr?.response?.status;
-            const msg = creditErr?.response?.data?.message
-              || (creditErr?.response?.data?.errors ? Object.values(creditErr.response.data.errors).flat().join(', ') : '')
-              || creditErr?.message
-              || 'Unknown error';
-            console.error('[Credit] Failed to create credit record:', { status, msg, data: creditErr?.response?.data });
-
-            // Show non-blocking warning — transaction is saved locally
-            Swal.fire({
-              icon: 'warning',
-              title: 'Credit Not Saved to API',
-              html: `Transaction was recorded locally but the credit record could not be saved.<br/><br/><small>${msg}</small>`,
-              confirmButtonText: 'OK',
-              confirmButtonColor: '#f97316',
-            });
-          }
-        }
-      }
+      // Credit order creation is handled by syncSingleTransaction (called automatically
+      // by saveTransactionLocally when online). It sends POST /api/orders with
+      // payment_method:'credit' + credit_customer fields, which handles everything:
+      // customer creation/update, credit_balance increment, payment record, and ledger entry.
 
       // Build discount label
       let discountLabel = "Discount";

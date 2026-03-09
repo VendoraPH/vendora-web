@@ -178,6 +178,16 @@ export interface LocalTransaction {
   amount_tendered: number;
   change: number;
 
+  // Credit info (for credit sales — synced as payment_method: 'credit' + credit_customer)
+  is_credit?: boolean;
+  credit_customer?: {
+    first_name: string;
+    last_name: string;
+    middle_name?: string;
+    contact_number?: string;
+    address?: string;
+  };
+
   // Metadata
   store_id?: number;
   notes?: string;

@@ -193,6 +193,8 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
 
   try {
     // Create order on server
+    const isCredit = transaction.is_credit === true || transaction.status === 'pending';
+
     const orderPayload: Record<string, any> = {
       customer_id: transaction.customer_id,
       ordered_at: transaction.ordered_at,
@@ -210,26 +212,24 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
       orderPayload.store_id = transaction.store_id;
     }
 
+    // Credit orders: include payment_method + credit_customer so the backend
+    // handles customer creation/update, credit_balance increment, payment, and ledger
+    if (isCredit && transaction.credit_customer) {
+      orderPayload.payment_method = 'credit';
+      orderPayload.credit_customer = transaction.credit_customer;
+    }
+
     const order = await orderService.create(orderPayload as any);
     console.log(`✅ Order created on server: ${order.id}`);
 
-    // Create payment(s) or credit record on server
+    // Create payment(s) on server (credit payments are already handled by the order endpoint)
     const paymentTime = new Date(transaction.created_at);
     const paidAt = `${paymentTime.toISOString().split('T')[0]} ${paymentTime.toTimeString().slice(0, 5)}`;
 
-    const isCredit = transaction.status === 'pending';
-
     if (isCredit) {
-      // Credit transaction: record via POST /payments/credit
-      const creditPayload = {
-        customer_id: transaction.customer_id,
-        amount: Math.round(transaction.total),
-        paid_at: paidAt,
-        method: "cash" as const,
-        note: transaction.notes ? `${transaction.notes} | Ref: ORD-${order.id}` : `Ref: ORD-${order.id}`,
-      };
-      await paymentService.recordCredit(creditPayload);
-      console.log(`✅ Credit record created on server for order ${order.id}`);
+      // No separate payment call needed — POST /api/orders with payment_method:'credit'
+      // already creates the payment record, ledger entry, and updates credit_balance
+      console.log(`✅ Credit order synced (order ${order.id}) — payment handled by order endpoint`);
     } else if (transaction.payment_methods && transaction.payment_methods.length > 1) {
       // Split payment
       await Promise.all(
