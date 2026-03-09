@@ -35,6 +35,8 @@ import {
     Tags,
     Plus,
     Loader2,
+    TrendingUp,
+    Lock,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -155,6 +157,10 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
     const [isSaving, setIsSaving] = useState(false)
     const [actionError, setActionError] = useState<string | null>(null)
 
+    // Markup state (UI-only, not sent to API)
+    const [markupType, setMarkupType] = useState<'percentage' | 'fixed'>('percentage')
+    const [markupValue, setMarkupValue] = useState<number>(0)
+
     // Image state
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [imageFile, setImageFile] = useState<File | null>(null)
@@ -237,6 +243,22 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
         return () => { active = false }
     }, [imagePreview])
 
+    // ── Auto-calculate selling price from cost + markup ────────────────────────
+    useEffect(() => {
+        const purchaseCost = formData.cost
+        if (purchaseCost > 0 && markupValue >= 0) {
+            let sellingPrice: number
+            if (markupType === 'percentage') {
+                sellingPrice = purchaseCost * (1 + markupValue / 100)
+            } else {
+                sellingPrice = purchaseCost + markupValue
+            }
+            setFormData(prev => ({ ...prev, price: Number(sellingPrice.toFixed(2)) }))
+        } else if (purchaseCost <= 0) {
+            setFormData(prev => ({ ...prev, price: 0 }))
+        }
+    }, [formData.cost, markupType, markupValue])
+
     // ── Camera stream ──────────────────────────────────────────────────────────
     useEffect(() => {
         let active = true
@@ -309,6 +331,8 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
         setIsActiveProduct(true)
         setIsEcommerceProduct(true)
         setIsBulkPricing(false)
+        setMarkupType('percentage')
+        setMarkupValue(0)
         setImagePreview(null)
         setImageFile(null)
         setImageName("")
@@ -331,7 +355,8 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
         if (!formData.name.trim()) return setActionError("Product name is required.")
         if (!formData.sku.trim()) return setActionError("SKU is required.")
         if (!formData.category_id) return setActionError("Category is required.")
-        if (formData.price <= 0) return setActionError("Price must be greater than 0.")
+        if (formData.cost <= 0) return setActionError("Purchase cost is required.")
+        if (formData.price <= 0) return setActionError("Selling price must be greater than 0. Check your cost and markup.")
         if (formData.stock === "") return setActionError("Stock quantity is required.")
         if (formData.min_stock === "") return setActionError("Minimum stock is required.")
         if (!imageFile && !imagePreview) return setActionError("Product image is required.")
@@ -615,26 +640,9 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                             <section className="space-y-4 sm:rounded-2xl sm:border sm:border-white/10 sm:bg-white/[0.04] sm:p-4">
                                 <h3 className="text-sm font-semibold">Pricing</h3>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {/* Price */}
+                                    {/* Purchase Cost */}
                                     <div className="space-y-2">
-                                        <p className="text-xs text-white/70">Price *</p>
-                                        <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                                            <DollarSign className="h-4 w-4 text-white/50" />
-                                            <Input
-                                                className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                placeholder="0.00"
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={formData.price || ""}
-                                                onChange={(e) => handleInputChange("price", Number(e.target.value))}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Cost */}
-                                    <div className="space-y-2">
-                                        <p className="text-xs text-white/70">Cost (optional)</p>
+                                        <p className="text-xs text-white/70">Purchase Cost *</p>
                                         <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
                                             <DollarSign className="h-4 w-4 text-white/50" />
                                             <Input
@@ -646,6 +654,65 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                                 value={formData.cost || ""}
                                                 onChange={(e) => handleInputChange("cost", Number(e.target.value))}
                                             />
+                                        </div>
+                                    </div>
+
+                                    {/* Markup */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-white/70">Mark Up *</p>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
+                                                        markupType === 'percentage'
+                                                            ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
+                                                            : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
+                                                    }`}
+                                                    onClick={() => setMarkupType('percentage')}
+                                                >
+                                                    %
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
+                                                        markupType === 'fixed'
+                                                            ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
+                                                            : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
+                                                    }`}
+                                                    onClick={() => setMarkupType('fixed')}
+                                                >
+                                                    Fixed
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
+                                            <TrendingUp className="h-4 w-4 text-white/50" />
+                                            <Input
+                                                className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder={markupType === 'percentage' ? "0" : "0.00"}
+                                                type="number"
+                                                min="0"
+                                                step={markupType === 'percentage' ? "1" : "0.01"}
+                                                value={markupValue || ""}
+                                                onChange={(e) => setMarkupValue(Number(e.target.value))}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Selling Price (auto-calculated, read-only) */}
+                                    <div className="space-y-2 col-span-2">
+                                        <p className="text-xs text-white/70">Selling Price</p>
+                                        <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
+                                            <DollarSign className="h-4 w-4 text-emerald-400/70" />
+                                            <Input
+                                                className="border-0 bg-transparent text-emerald-300 font-medium placeholder:text-emerald-400/30 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder="Auto-calculated"
+                                                value={formData.price > 0 ? formData.price.toFixed(2) : ""}
+                                                readOnly
+                                                tabIndex={-1}
+                                            />
+                                            <Lock className="h-3 w-3 text-emerald-400/40" />
                                         </div>
                                     </div>
 
