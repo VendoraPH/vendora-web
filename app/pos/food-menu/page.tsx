@@ -35,7 +35,7 @@ import {
 } from "lucide-react"
 import Swal from "sweetalert2"
 import { foodMenuService } from "@/services"
-import type { FoodMenuCreatePayload } from "@/services"
+import type { FoodMenuCreatePayload, FoodMenuItem as ApiFoodMenuItem, FoodMenuReservation as ApiFoodMenuReservation } from "@/services"
 import { useOfflineData } from "@/hooks/use-offline-data"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 
@@ -109,131 +109,40 @@ const initialForm: ItemForm = {
   isAvailable: true,
 }
 
-// ─── Seed Data ────────────────────────────────────────────────────────────────
+// ─── API → UI Mapping Helpers ────────────────────────────────────────────────
 
-const seedMenuItems: MenuItem[] = [
-  {
-    id: 1,
-    name: "Chicken Adobo",
-    description: "Classic Filipino chicken braised in vinegar, soy sauce, garlic, and spices.",
-    category: "Main Course",
-    price: 120,
-    totalServings: 30,
-    reservedServings: 18,
-    isAvailable: true,
-  },
-  {
-    id: 2,
-    name: "Sinigang na Baboy",
-    description: "Pork ribs in tamarind-based sour broth with vegetables.",
-    category: "Soup",
-    price: 150,
-    totalServings: 25,
-    reservedServings: 25,
-    isAvailable: false,
-  },
-  {
-    id: 3,
-    name: "Fried Tilapia",
-    description: "Whole tilapia deep-fried to golden perfection.",
-    category: "Main Course",
-    price: 95,
-    totalServings: 20,
-    reservedServings: 6,
-    isAvailable: true,
-  },
-  {
-    id: 4,
-    name: "Pancit Canton",
-    description: "Stir-fried egg noodles with vegetables and your choice of meat.",
-    category: "Main Course",
-    price: 80,
-    totalServings: 40,
-    reservedServings: 12,
-    isAvailable: true,
-  },
-  {
-    id: 5,
-    name: "Buko Pandan",
-    description: "Chilled coconut pandan jelly dessert with cream.",
-    category: "Dessert",
-    price: 55,
-    totalServings: 50,
-    reservedServings: 20,
-    isAvailable: true,
-  },
-  {
-    id: 6,
-    name: "Bangus Sisig",
-    description: "Sizzling milkfish sisig with onions, chili, and calamansi.",
-    category: "Appetizer",
-    price: 110,
-    totalServings: 15,
-    reservedServings: 3,
-    isAvailable: true,
-  },
-  {
-    id: 7,
-    name: "Buko Juice",
-    description: "Fresh young coconut juice served chilled.",
-    category: "Beverage",
-    price: 40,
-    totalServings: 60,
-    reservedServings: 22,
-    isAvailable: true,
-  },
-]
+function mapApiFoodMenuItem(item: ApiFoodMenuItem): MenuItem {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description ?? "",
+    category: (item.category ?? "Main Course") as MenuCategory,
+    price: Number(item.price) || 0,
+    totalServings: item.total_servings ?? 0,
+    reservedServings: item.reserved_servings ?? 0,
+    isAvailable: item.is_available ?? true,
+  }
+}
 
-const seedReservations: Reservation[] = [
-  {
-    id: 1,
-    menuItemId: 1,
-    menuItemName: "Chicken Adobo",
-    employeeName: "Maria Santos",
-    phone: "09171234567",
-    servings: 2,
-    notes: "",
-    total: 240,
-    status: "Confirmed",
-    createdAt: "2026-03-03 08:12",
-  },
-  {
-    id: 2,
-    menuItemId: 3,
-    menuItemName: "Fried Tilapia",
-    employeeName: "Jose Reyes",
-    phone: "09281234567",
-    servings: 1,
-    notes: "Extra rice please",
-    total: 95,
-    status: "Pending",
-    createdAt: "2026-03-03 09:04",
-  },
-  {
-    id: 3,
-    menuItemId: 2,
-    menuItemName: "Sinigang na Baboy",
-    employeeName: "Anna Cruz",
-    phone: "09351234567",
-    servings: 3,
-    notes: "",
-    total: 450,
-    status: "Cancelled",
-    createdAt: "2026-03-03 07:55",
-  },
-  {
-    id: 4,
-    menuItemId: 5,
-    menuItemName: "Buko Pandan",
-    employeeName: "Carlo Mendoza",
-    phone: "09461234567",
-    servings: 2,
-    notes: "Less sweet",
-    total: 110,
-    status: "Confirmed",
-    createdAt: "2026-03-03 10:22",
-  },
-]
+function mapApiReservation(r: ApiFoodMenuReservation): Reservation {
+  const itemPrice = r.food_menu_item ? Number(r.food_menu_item.price) || 0 : 0
+  const status = r.status
+    ? (r.status.charAt(0).toUpperCase() + r.status.slice(1)) as Reservation["status"]
+    : "Pending"
+
+  return {
+    id: r.id,
+    menuItemId: r.food_menu_item_id,
+    menuItemName: r.food_menu_item?.name ?? `Item #${r.food_menu_item_id}`,
+    employeeName: r.customer_name,
+    phone: r.customer_phone ?? "",
+    servings: r.servings,
+    notes: r.notes ?? "",
+    total: r.servings * itemPrice,
+    status,
+    createdAt: r.created_at ?? "",
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -267,8 +176,6 @@ function getStatusBadge(status: Reservation["status"]) {
   }
 }
 
-let nextId = seedMenuItems.length + 1
-
 // ─── Sort icon helper ─────────────────────────────────────────────────────────
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -283,20 +190,28 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 export default function FoodMenuPage() {
   const [activeTab, setActiveTab]     = useState<"items" | "reservations">("items")
 
-  // NOTE: Food menu backend endpoint returns 500 — using seed data until backend is ready
   const { data, isLoading, isStale, lastSyncedAt, error, refresh } = useOfflineData<{
     items: MenuItem[];
     reservations: Reservation[];
   }>(
     "food-menu-data",
     async () => {
-      return { items: seedMenuItems, reservations: seedReservations }
+      const [itemsRes, reservationsRes] = await Promise.all([
+        foodMenuService.getAll({ per_page: 200 }),
+        foodMenuService.getReservations({ per_page: 200 }),
+      ])
+      const rawItems = Array.isArray(itemsRes) ? itemsRes : (itemsRes as any)?.data ?? []
+      const rawRes = Array.isArray(reservationsRes) ? reservationsRes : (reservationsRes as any)?.data ?? []
+      return {
+        items: rawItems.map(mapApiFoodMenuItem),
+        reservations: rawRes.map(mapApiReservation),
+      }
     },
     { staleAfterMinutes: 15 }
   )
 
-  const [menuItems, setMenuItems]     = useState<MenuItem[]>(seedMenuItems)
-  const reservations = data?.reservations ?? seedReservations
+  const [menuItems, setMenuItems]     = useState<MenuItem[]>([])
+  const reservations = data?.reservations ?? []
 
   // Sync menuItems state when data loads from API
   useEffect(() => {
@@ -477,7 +392,7 @@ export default function FoodMenuPage() {
         Swal.fire({ icon: "success", title: "Updated (offline)!", text: `"${form.name}" has been updated locally.`, confirmButtonColor: "#7C3AED", timer: 1800, showConfirmButton: false })
       } else {
         const newItem: MenuItem = {
-          id: nextId++,
+          id: Date.now(),
           name: form.name.trim(),
           description: form.description.trim(),
           category: form.category,
@@ -519,12 +434,19 @@ export default function FoodMenuPage() {
 
   // ── Toggle availability ─────────────────────────────────────────────────────
   const toggleAvailability = async (id: number) => {
+    const current = menuItems.find((item) => item.id === id)
+    if (!current) return
+    // Optimistic update
+    setMenuItems((prev) =>
+      prev.map((item) => item.id === id ? { ...item, isAvailable: !item.isAvailable } : item)
+    )
     try {
-      await foodMenuService.toggleAvailability(id)
+      await foodMenuService.update(id, { is_available: !current.isAvailable })
       refresh()
     } catch {
+      // Revert on failure
       setMenuItems((prev) =>
-        prev.map((item) => item.id === id ? { ...item, isAvailable: !item.isAvailable } : item)
+        prev.map((item) => item.id === id ? { ...item, isAvailable: current.isAvailable } : item)
       )
     }
   }

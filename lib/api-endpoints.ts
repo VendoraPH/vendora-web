@@ -471,22 +471,22 @@ export const foodMenuEndpoints = {
   // DELETE /food-menu/:id
   delete: (id: string | number) => buildUrl("/food-menu/:id", { id }),
 
-  // PATCH /food-menu/:id/availability
-  toggleAvailability: (id: string | number) => buildUrl("/food-menu/:id/availability", { id }),
-
   // GET /food-menu/categories
   categories: () => "/food-menu/categories",
 
   // Reservations
   reservations: {
-    // GET /food-menu/reservations
-    list: () => "/food-menu/reservations",
+    // GET /food-menu-reservations
+    list: () => "/food-menu-reservations",
 
-    // POST /food-menu/reservations
-    create: () => "/food-menu/reservations",
+    // POST /food-menu-reservations
+    create: () => "/food-menu-reservations",
 
-    // PATCH /food-menu/reservations/:id/status
-    updateStatus: (id: string | number) => buildUrl("/food-menu/reservations/:id/status", { id }),
+    // PUT /food-menu-reservations/:id
+    update: (id: string | number) => buildUrl("/food-menu-reservations/:id", { id }),
+
+    // DELETE /food-menu-reservations/:id
+    delete: (id: string | number) => buildUrl("/food-menu-reservations/:id", { id }),
   },
 }
 
