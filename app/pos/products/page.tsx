@@ -237,6 +237,7 @@ function DesktopInventoryLayout() {
   const [isBulkPricing, setIsBulkPricing] = useState(false)
   const [markupType, setMarkupType] = useState<'percentage' | 'fixed'>('percentage')
   const [markupValue, setMarkupValue] = useState<number>(0)
+  const [isPriceManuallySet, setIsPriceManuallySet] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null)
   const [formData, setFormData] = useState<ProductForm>(initialFormState)
@@ -317,6 +318,7 @@ function DesktopInventoryLayout() {
     setIsBulkPricing(false)
     setMarkupType('percentage')
     setMarkupValue(0)
+    setIsPriceManuallySet(false)
     setImagePreview(null)
     setImageFile(null)
     setImageName("")
@@ -432,8 +434,9 @@ function DesktopInventoryLayout() {
     }
   }, [imagePreview])
 
-  // Auto-calculate selling price from cost + markup
+  // Auto-calculate selling price from cost + markup (skipped if price was manually set)
   useEffect(() => {
+    if (isPriceManuallySet) return
     const purchaseCost = formData.cost
     if (purchaseCost > 0 && markupValue >= 0) {
       let sellingPrice: number
@@ -446,7 +449,21 @@ function DesktopInventoryLayout() {
     } else if (purchaseCost <= 0) {
       setFormData(prev => ({ ...prev, price: 0 }))
     }
-  }, [formData.cost, markupType, markupValue])
+  }, [formData.cost, markupType, markupValue, isPriceManuallySet])
+
+  // When selling price is manually edited, back-calculate markup
+  const handleSellingPriceChange = (value: number) => {
+    setIsPriceManuallySet(true)
+    setFormData(prev => ({ ...prev, price: value }))
+    const cost = formData.cost
+    if (cost > 0 && value > 0) {
+      if (markupType === 'percentage') {
+        setMarkupValue(Math.round(((value - cost) / cost) * 100 * 100) / 100)
+      } else {
+        setMarkupValue(Math.round((value - cost) * 100) / 100)
+      }
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -561,6 +578,7 @@ function DesktopInventoryLayout() {
     const existingCost = product.cost || 0
     const existingPrice = product.price || 0
     setMarkupType('percentage')
+    setIsPriceManuallySet(false)
     if (existingCost > 0 && existingPrice > existingCost) {
       setMarkupValue(Math.round(((existingPrice - existingCost) / existingCost) * 100 * 100) / 100)
     } else {
@@ -1601,7 +1619,7 @@ function DesktopInventoryLayout() {
                 {/* Pricing */}
                 <section className="space-y-4 sm:rounded-2xl sm:border sm:border-white/10 sm:bg-white/[0.04] sm:p-4">
                   <h3 className="text-sm font-semibold">Pricing</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     {/* Purchase Cost */}
                     <div className="space-y-2">
                       <p className="text-xs text-white/70">Purchase Cost *</p>
@@ -1614,15 +1632,25 @@ function DesktopInventoryLayout() {
                           min="0"
                           step="0.01"
                           value={formData.cost || ""}
-                          onChange={(e) => handleInputChange("cost", Number(e.target.value))}
+                          onChange={(e) => {
+                            setIsPriceManuallySet(false)
+                            handleInputChange("cost", Number(e.target.value))
+                          }}
                         />
                       </div>
+                    </div>
+
+                    {/* Arrow connector */}
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="flex-1 border-t border-dashed border-white/10" />
+                      <TrendingUp className="h-3.5 w-3.5 text-purple-400/60" />
+                      <div className="flex-1 border-t border-dashed border-white/10" />
                     </div>
 
                     {/* Markup */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/70">Mark Up *</p>
+                        <p className="text-xs text-white/70">Mark Up</p>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
@@ -1631,7 +1659,7 @@ function DesktopInventoryLayout() {
                                 ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
                                 : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
                             }`}
-                            onClick={() => setMarkupType('percentage')}
+                            onClick={() => { setMarkupType('percentage'); setIsPriceManuallySet(false) }}
                           >
                             %
                           </button>
@@ -1642,39 +1670,71 @@ function DesktopInventoryLayout() {
                                 ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
                                 : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
                             }`}
-                            onClick={() => setMarkupType('fixed')}
+                            onClick={() => { setMarkupType('fixed'); setIsPriceManuallySet(false) }}
                           >
                             Fixed
                           </button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                        <TrendingUp className="h-4 w-4 text-white/50" />
+                        <span className="text-xs text-white/50 font-medium shrink-0">
+                          {markupType === 'percentage' ? '%' : '₱'}
+                        </span>
                         <Input
                           className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                          placeholder={markupType === 'percentage' ? "0" : "0.00"}
+                          placeholder={markupType === 'percentage' ? "e.g. 30" : "e.g. 50.00"}
                           type="number"
                           min="0"
                           step={markupType === 'percentage' ? "1" : "0.01"}
                           value={markupValue || ""}
-                          onChange={(e) => setMarkupValue(Number(e.target.value))}
+                          onChange={(e) => { setIsPriceManuallySet(false); setMarkupValue(Number(e.target.value)) }}
                         />
                       </div>
                     </div>
 
-                    {/* Selling Price (auto-calculated, read-only) */}
+                    {/* Arrow connector */}
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="flex-1 border-t border-dashed border-white/10" />
+                      <span className="text-[10px] text-emerald-400/50 font-medium">= Selling Price</span>
+                      <div className="flex-1 border-t border-dashed border-white/10" />
+                    </div>
+
+                    {/* Selling Price */}
                     <div className="space-y-2">
-                      <p className="text-xs text-white/70">Selling Price</p>
-                      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
-                        <span className="h-4 w-4 text-emerald-400/70 font-bold text-sm flex items-center justify-center">₱</span>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-white/70">Selling Price *</p>
+                        {isPriceManuallySet && (
+                          <button
+                            type="button"
+                            className="text-[10px] text-purple-300/70 hover:text-purple-200 transition"
+                            onClick={() => setIsPriceManuallySet(false)}
+                          >
+                            Reset to auto
+                          </button>
+                        )}
+                      </div>
+                      <div className={`flex items-center gap-2 rounded-xl border px-3 transition ${
+                        isPriceManuallySet
+                          ? 'bg-white/10 border-white/10'
+                          : 'bg-emerald-500/10 border-emerald-500/20'
+                      }`}>
+                        <span className={`h-4 w-4 font-bold text-sm flex items-center justify-center ${
+                          isPriceManuallySet ? 'text-white/50' : 'text-emerald-400/70'
+                        }`}>₱</span>
                         <Input
-                          className="border-0 bg-transparent text-emerald-300 font-medium placeholder:text-emerald-400/30 focus-visible:ring-0 focus-visible:ring-offset-0"
-                          placeholder="Auto-calculated"
-                          value={formData.price > 0 ? formData.price.toFixed(2) : ""}
-                          readOnly
-                          tabIndex={-1}
+                          className={`border-0 bg-transparent font-medium focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                            isPriceManuallySet
+                              ? 'text-white placeholder:text-white/40'
+                              : 'text-emerald-300 placeholder:text-emerald-400/30'
+                          }`}
+                          placeholder="0.00"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.price > 0 ? formData.price : ""}
+                          onChange={(e) => handleSellingPriceChange(Number(e.target.value))}
                         />
-                        <Lock className="h-3 w-3 text-emerald-400/40" />
+                        {!isPriceManuallySet && <Lock className="h-3 w-3 text-emerald-400/40 shrink-0" />}
                       </div>
                     </div>
 

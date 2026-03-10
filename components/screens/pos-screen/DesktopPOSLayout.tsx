@@ -128,8 +128,12 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
     categories = [],
     receiptData = null,
     startNewTransaction = () => { },
-    creditorName: _creditorName = "",
-    setCreditorName: _setCreditorName = () => { },
+    creditorFirstName: _creditorFirstName = "",
+    setCreditorFirstName: _setCreditorFirstName = () => { },
+    creditorMiddleName: _creditorMiddleName = "",
+    setCreditorMiddleName: _setCreditorMiddleName = () => { },
+    creditorLastName: _creditorLastName = "",
+    setCreditorLastName: _setCreditorLastName = () => { },
     creditorPhone: _creditorPhone = "",
     setCreditorPhone: _setCreditorPhone = () => { },
     creditorAddress: _creditorAddress = "",
@@ -138,7 +142,9 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
 
   const [activeDiscountPreset, setActiveDiscountPreset] = useState<string>("None");
   const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
-  const [localCreditorName, setLocalCreditorName] = useState("");
+  const [localFirstName, setLocalFirstName] = useState("");
+  const [localMiddleName, setLocalMiddleName] = useState("");
+  const [localLastName, setLocalLastName] = useState("");
   const [localCreditorPhone, setLocalCreditorPhone] = useState("");
   const [localCreditorAddress, setLocalCreditorAddress] = useState("");
   const [localCreditorDueDate, setLocalCreditorDueDate] = useState("");
@@ -1071,7 +1077,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
       )}
 
       {/* Credit Info Dialog */}
-      <Dialog open={isCreditDialogOpen} onOpenChange={(v) => { setIsCreditDialogOpen(v); if (!v) { setLocalCreditorName(""); setLocalCreditorPhone(""); setLocalCreditorAddress(""); setLocalCreditorDueDate(""); } }}>
+      <Dialog open={isCreditDialogOpen} onOpenChange={(v) => { setIsCreditDialogOpen(v); if (!v) { setLocalFirstName(""); setLocalMiddleName(""); setLocalLastName(""); setLocalCreditorPhone(""); setLocalCreditorAddress(""); setLocalCreditorDueDate(""); } }}>
         <DialogContent className="sm:max-w-[420px] bg-white dark:bg-[#1e1340] border-gray-200 dark:border-white/10 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
@@ -1081,9 +1087,19 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
             <p className={`text-sm ${THEME.muted} pt-1`}>Fill in the customer&apos;s details to complete this credit transaction.</p>
           </DialogHeader>
           <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="cd-firstname" className="text-gray-700 dark:text-white/80 text-sm">First Name <span className="text-red-500">*</span></Label>
+                <Input id="cd-firstname" placeholder="First name" value={localFirstName} onChange={(e) => setLocalFirstName(e.target.value)} className="rounded-xl bg-gray-50 border-gray-200 dark:bg-white/10 dark:border-white/10 dark:text-white" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="cd-lastname" className="text-gray-700 dark:text-white/80 text-sm">Last Name <span className="text-red-500">*</span></Label>
+                <Input id="cd-lastname" placeholder="Last name" value={localLastName} onChange={(e) => setLocalLastName(e.target.value)} className="rounded-xl bg-gray-50 border-gray-200 dark:bg-white/10 dark:border-white/10 dark:text-white" />
+              </div>
+            </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="cd-name" className="text-gray-700 dark:text-white/80 text-sm">Full Name <span className="text-red-500">*</span></Label>
-              <Input id="cd-name" placeholder="Customer's full name" value={localCreditorName} onChange={(e) => setLocalCreditorName(e.target.value)} className="rounded-xl bg-gray-50 border-gray-200 dark:bg-white/10 dark:border-white/10 dark:text-white" />
+              <Label htmlFor="cd-middlename" className="text-gray-700 dark:text-white/80 text-sm">Middle Name <span className={`text-xs ${THEME.muted}`}>(optional)</span></Label>
+              <Input id="cd-middlename" placeholder="Middle name" value={localMiddleName} onChange={(e) => setLocalMiddleName(e.target.value)} className="rounded-xl bg-gray-50 border-gray-200 dark:bg-white/10 dark:border-white/10 dark:text-white" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="cd-phone" className="text-gray-700 dark:text-white/80 text-sm">Contact Number <span className="text-red-500">*</span></Label>
@@ -1106,10 +1122,17 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
             <Button variant="outline" className="rounded-xl" onClick={() => setIsCreditDialogOpen(false)}>Cancel</Button>
             <Button
               className="rounded-xl bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white"
-              disabled={!localCreditorName.trim() || !localCreditorPhone.trim() || !localCreditorAddress.trim()}
+              disabled={!localFirstName.trim() || !localLastName.trim() || !localCreditorPhone.trim() || !localCreditorAddress.trim()}
               onClick={async () => {
                 setIsCreditDialogOpen(false);
-                if (completeOrder) await completeOrder(true, { name: localCreditorName, phone: localCreditorPhone, address: localCreditorAddress, dueDate: localCreditorDueDate || undefined });
+                if (completeOrder) await completeOrder(true, {
+                  firstName: localFirstName,
+                  middleName: localMiddleName || undefined,
+                  lastName: localLastName,
+                  phone: localCreditorPhone,
+                  address: localCreditorAddress,
+                  dueDate: localCreditorDueDate || undefined,
+                });
               }}
             >
               Confirm Credit
