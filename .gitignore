@@ -55,3 +55,6 @@ next-env.d.ts
 login.png
 nul
 .env*.local
+
+# API documentation (sensitive endpoints)
+docs/api/VENDORA_API_ENDPOINTS.md

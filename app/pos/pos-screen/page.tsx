@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import React, { useEffect, useMemo, useState, useCallback, lazy, Suspense } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -166,6 +167,35 @@ export default function VendoraPOS() {
 
   // Data from API
   const [apiProducts, setApiProducts] = useState<ApiProduct[]>([]);
+
+  // Reactively sync products from IndexedDB so newly created/updated products
+  // appear without requiring a full page reload.
+  const liveDbProducts = useLiveQuery(
+    () => db.products.filter(p => p.is_active === true && p._status !== "deleted").toArray(),
+    [],
+    null
+  );
+  useEffect(() => {
+    if (!liveDbProducts || liveDbProducts.length === 0) return;
+    const mapped: ApiProduct[] = liveDbProducts.map(p => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku || "",
+      barcode: p.barcode || "",
+      price: p.price,
+      stock: p.stock,
+      unit: p.unit,
+      category: p.category_id ? { id: p.category_id, name: p.category_name || "" } : undefined as any,
+      image: p.image_url,
+      is_active: true,
+      currency: "PHP",
+      is_low_stock: false,
+      created_at: "",
+      updated_at: "",
+    }));
+    setApiProducts(mapped);
+  }, [liveDbProducts]);
+
   const [customers, setCustomers] = useState<ApiCustomer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
