@@ -35,6 +35,7 @@ import {
 
 type OrderRow = {
   id: string
+  numericId: number
   customer: string
   date: string
   total: number
@@ -90,7 +91,7 @@ const normalizeOrderDetails = (raw: any): any => {
         item?.sale_price ??
         item?.product?.price ??
         0
-      const unitPrice = Number(rawPrice) / 100
+      const unitPrice = Number(rawPrice)
 
       const qty = Number(item?.quantity ?? item?.qty ?? 1)
 
@@ -101,7 +102,7 @@ const normalizeOrderDetails = (raw: any): any => {
         item?.line_total ??
         item?.amount ??
         rawPrice * qty
-      const lineTotal = Number(rawLineTotal) / 100
+      const lineTotal = Number(rawLineTotal)
 
       return {
         ...item,
@@ -124,6 +125,7 @@ function DesktopOrdersLayout() {
   const orders = useMemo(() => {
     return localOrders.map((o: LocalOrder): OrderRow => ({
       id: o.order_number || String(o.id),
+      numericId: Number(o.id),
       customer: o.customer_name || "Walk-in Customer",
       date: o.ordered_at ? (o.ordered_at.includes("T") ? o.ordered_at.slice(0, 10) : o.ordered_at) : (o.created_at?.slice(0, 10) || "—"),
       total: Number(o.total || 0),
@@ -426,10 +428,10 @@ function DesktopOrdersLayout() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(order.id)}>
+                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(order.numericId)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => printInvoice(order.id)}>
+                        <Button size="sm" variant="ghost" onClick={() => printInvoice(order.numericId)}>
                           <Printer className="h-4 w-4" />
                         </Button>
                       </div>
@@ -481,11 +483,11 @@ function DesktopOrdersLayout() {
               </div>
             </div>
             <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(order.id)}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(order.numericId)}>
                 <Eye className="h-4 w-4 mr-1" />
                 View
               </Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(order.id)}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(order.numericId)}>
                 <Printer className="h-4 w-4 mr-1" />
                 Print
               </Button>
