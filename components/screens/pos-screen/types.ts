@@ -119,4 +119,5 @@ export interface POSScreenProps {
   setCreditorPhone?: (value: string) => void;
   creditorAddress?: string;
   setCreditorAddress?: (value: string) => void;
+  customers?: { id: number; name: string; phone?: string | null }[];
 }

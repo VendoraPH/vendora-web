@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/select"
 import {
     Search,
-    DollarSign,
     Users,
     TrendingUp,
     AlertCircle,
