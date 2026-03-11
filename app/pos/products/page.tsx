@@ -1111,7 +1111,7 @@ function DesktopInventoryLayout() {
                     {visibleColumns.price && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {item.currency} {item.price.toLocaleString()}
+                          ₱{item.price.toLocaleString()}
                         </div>
                       </td>
                     )}
@@ -1265,7 +1265,7 @@ function DesktopInventoryLayout() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 dark:bg-[#13132a] p-3 rounded-lg">
                   <p className="text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">Price</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white">{item.currency} {item.price.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">₱{item.price.toLocaleString()}</p>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-[#13132a] p-3 rounded-lg">
