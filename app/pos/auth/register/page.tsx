@@ -9,7 +9,7 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Building2, Mail, Lock, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
 import { SubscriptionPlanSelector } from "@/components/auth/subscription-plan-selector"
@@ -32,7 +32,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function VendorRegisterPage() {
   const router = useRouter()
-  const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Plan selection, 2: Account details, 3: Payment
+  const [step, setStep] = useState<1 | 2>(1) // 1: Plan selection, 2: Account details
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
@@ -56,12 +56,12 @@ export default function VendorRegisterPage() {
       return
     }
     setError(null)
-    setStep((step + 1) as 2 | 3)
+    setStep(2)
   }
 
   const handlePrevStep = () => {
     setError(null)
-    setStep((step - 1) as 1 | 2)
+    setStep(1)
   }
 
   const onSubmit = async (data: RegisterForm) => {
@@ -74,8 +74,6 @@ export default function VendorRegisterPage() {
     setError(null)
 
     try {
-      // Call the server-side proxy route which uses admin credentials
-      // to create a proper vendor account via POST /api/admin/vendors
       const response = await fetch('/api/vendor-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,14 +94,10 @@ export default function VendorRegisterPage() {
         throw new Error(result.message || "Registration failed")
       }
 
-      if (result.payment_url) {
-        window.location.href = result.payment_url
-      } else {
-        setSuccess(true)
-        setTimeout(() => {
-          router.push("/pos/dashboard")
-        }, 2000)
-      }
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/pos/dashboard")
+      }, 2000)
     } catch (err) {
       const errorMessage = (err as Error)?.message || "An error occurred during registration"
       setError(errorMessage)
@@ -146,27 +140,23 @@ export default function VendorRegisterPage() {
         // Step 2: Full viewport layout without wrapper
         <div className="min-h-screen w-full flex flex-col md:flex-row">
           {/* Left Column - Image */}
-          {/* Mobile: Short banner | Tablet: 50% width | Desktop: 60% width */}
           <div className="relative w-full h-48 sm:h-64 md:h-screen md:w-1/2 lg:w-3/5 bg-slate-900">
             <img
               src="/images/Register.jpg"
               alt="Register Background"
               className="absolute inset-0 w-full h-full object-cover object-center md:object-left"
             />
-            {/* Overlay gradient for better text readability on tablet */}
             <div className="hidden md:block lg:hidden absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
           </div>
 
           {/* Right Column - Registration Form */}
-          {/* Mobile: Full width | Tablet: 50% width | Desktop: 40% width */}
           <div className="w-full md:w-1/2 lg:w-2/5 md:h-screen flex flex-col bg-white">
-            {/* Progress Steps - Inside right column */}
+            {/* Progress Steps */}
             <div className="border-b bg-white py-4 px-6">
               <div className="flex items-start justify-center gap-3">
                 {[
                   { num: 1, label: "Choose Plan" },
                   { num: 2, label: "Account Details" },
-                  { num: 3, label: "Payment" }
                 ].map((s, idx) => (
                   <div key={s.num} className="flex items-center">
                     <div className="flex flex-col items-center">
@@ -182,7 +172,7 @@ export default function VendorRegisterPage() {
                         {s.label}
                       </span>
                     </div>
-                    {idx < 2 && (
+                    {idx < 1 && (
                       <div
                         className={`w-12 h-0.5 mx-1 mb-5 ${step > s.num ? "bg-purple-600" : "bg-gray-200"}`}
                       />
@@ -276,6 +266,13 @@ export default function VendorRegisterPage() {
                     )}
                   </div>
 
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="flex justify-between pt-2">
                     <Button type="button" variant="ghost" onClick={handlePrevStep}>
                       <ArrowLeft className="mr-2 h-4 w-4" />
@@ -287,7 +284,7 @@ export default function VendorRegisterPage() {
                       disabled={isLoading}
                     >
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Continue to Payment
+                      Create Account
                     </Button>
                   </div>
                 </form>
@@ -296,7 +293,7 @@ export default function VendorRegisterPage() {
           </div>
         </div>
       ) : (
-        // Steps 1 and 3: Wrapped layout
+        // Step 1: Plan selection
         <div className="min-h-screen p-4 py-3">
           <div className="w-full max-w-6xl mx-auto pb-20">
             {/* Progress Steps */}
@@ -305,10 +302,8 @@ export default function VendorRegisterPage() {
                 {[
                   { num: 1, label: "Choose Plan" },
                   { num: 2, label: "Account Details" },
-                  { num: 3, label: "Payment" }
                 ].map((s, idx) => (
                   <div key={s.num} className="flex items-center">
-                    {/* Step Column */}
                     <div className="flex flex-col items-center">
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${step >= s.num
@@ -322,9 +317,7 @@ export default function VendorRegisterPage() {
                         {s.label}
                       </span>
                     </div>
-
-                    {/* Connector Line */}
-                    {idx < 2 && (
+                    {idx < 1 && (
                       <div
                         className={`w-16 h-1 mx-2 mb-6 ${step > s.num ? "bg-purple-600" : "bg-gray-200"}`}
                       />
@@ -342,50 +335,31 @@ export default function VendorRegisterPage() {
             )}
 
             {/* Step 1: Plan Selection */}
-            {step === 1 && (
-              <>
-                <div className="mb-24">
-                  <SubscriptionPlanSelector
-                    selectedPlan={selectedPlan}
-                    onSelectPlan={handlePlanSelection}
-                  />
-                </div>
+            <div className="mb-24">
+              <SubscriptionPlanSelector
+                selectedPlan={selectedPlan}
+                onSelectPlan={handlePlanSelection}
+              />
+            </div>
 
-                {/* Sticky Navigation Buttons */}
-                <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg">
-                  <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link href="/pos/auth/login">
-                      <Button variant="ghost">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Login
-                      </Button>
-                    </Link>
-                    <Button
-                      onClick={handleNextStep}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                      disabled={!selectedPlan}
-                    >
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Step 3: Payment - This would redirect to Stripe/PayPal */}
-            {step === 3 && (
-              <Card className="max-w-2xl mx-auto">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="text-2xl font-bold text-center">Processing...</CardTitle>
-                  <CardDescription className="text-center">
-                    Redirecting to secure payment processor
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-center py-8">
-                  <Loader2 className="h-12 w-12 animate-spin text-purple-600" />
-                </CardContent>
-              </Card>
-            )}
+            {/* Sticky Navigation Buttons */}
+            <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg">
+              <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                <Link href="/pos/auth/login">
+                  <Button variant="ghost">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Login
+                  </Button>
+                </Link>
+                <Button
+                  onClick={handleNextStep}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  disabled={!selectedPlan}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
