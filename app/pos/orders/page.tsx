@@ -117,7 +117,7 @@ function DesktopOrdersLayout() {
       id: o.order_number || String(o.id),
       customer: o.customer_name || "Walk-in Customer",
       date: o.ordered_at ? (o.ordered_at.includes("T") ? o.ordered_at.slice(0, 10) : o.ordered_at) : (o.created_at?.slice(0, 10) || "—"),
-      total: Number(o.total || 0) / 100,
+      total: Number(o.total || 0),
       status: normalizeStatus(o.status),
       items: o.items_count || (o.items?.length || 0),
     }))
@@ -138,25 +138,59 @@ function DesktopOrdersLayout() {
 
 
 
-  const loadOrderDetails = useCallback(async (orderId: number) => {
+  const loadOrderDetails = useCallback(async (orderId: string) => {
     setIsLoadingDetails(true)
     setIsDetailsModalOpen(true)
     try {
-      const response = await api.get(posOrderEndpoints.get(orderId))
-      setOrderDetails(normalizeOrderDetails(response))
+      // Use local data first — avoids 404 for local-only transactions (TXN-XXXXXXXX)
+      const localOrder = localOrders.find(
+        o => o.order_number === orderId || String(o.id) === orderId
+      )
+
+      if (localOrder) {
+        // Local DB stores prices in pesos — set directly without /100
+        setOrderDetails({
+          id: localOrder.id,
+          order_number: localOrder.order_number,
+          customer: localOrder.customer_name || "Walk-in Customer",
+          ordered_at: localOrder.ordered_at,
+          status: localOrder.status,
+          total: Number(localOrder.total || 0),
+          subtotal: Number(localOrder.subtotal || localOrder.total || 0),
+          tax: Number(localOrder.tax || 0),
+          discount: Number(localOrder.discount || 0),
+          delivery_fee: Number(localOrder.delivery_fee || 0),
+          payment_method: localOrder.payment_method,
+          items: (localOrder.items || []).map(item => ({
+            name: item.product_name || `Product #${item.product_id}`,
+            product: { name: item.product_name || `Product #${item.product_id}` },
+            quantity: item.quantity,
+            price: Number(item.price || 0),
+            total: Number(item.price || 0) * item.quantity,
+          })),
+        })
+        return
+      }
+
+      // Fallback: API call only for real server numeric IDs
+      const numericId = Number(orderId.replace(/\D/g, '') || 0)
+      if (numericId && numericId < 1_000_000) {
+        const response = await api.get(posOrderEndpoints.get(numericId))
+        setOrderDetails(normalizeOrderDetails(response))
+      } else {
+        setOrderDetails(null)
+      }
     } catch (error) {
       console.error("Failed to load order details:", error)
       setOrderDetails(null)
     } finally {
       setIsLoadingDetails(false)
     }
-  }, [])
+  }, [localOrders])
 
-  const printInvoice = async (orderId: number) => {
+  const printInvoice = async (orderId: string) => {
     try {
-      // Load order details and open modal
       await loadOrderDetails(orderId)
-      // Wait for modal to render, then trigger print
       setTimeout(() => {
         window.print()
       }, 500)
@@ -172,10 +206,7 @@ function DesktopOrdersLayout() {
   useEffect(() => {
     if (!highlightOrderId || isLoading || orders.length === 0 || autoOpenedRef.current) return
     autoOpenedRef.current = true
-    const numericId = Number(highlightOrderId.replace(/\D/g, "") || 0)
-    if (numericId) {
-      loadOrderDetails(numericId)
-    }
+    loadOrderDetails(highlightOrderId)
     // Scroll highlighted row into view
     setTimeout(() => {
       const rowEl = document.getElementById(`order-row-${highlightOrderNum || highlightOrderId}`)
@@ -386,10 +417,10 @@ function DesktopOrdersLayout() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(Number(order.id.replace(/\D/g, '') || 0))}>
+                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(order.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => printInvoice(Number(order.id.replace(/\D/g, '') || 0))}>
+                        <Button size="sm" variant="ghost" onClick={() => printInvoice(order.id)}>
                           <Printer className="h-4 w-4" />
                         </Button>
                       </div>
@@ -441,11 +472,11 @@ function DesktopOrdersLayout() {
               </div>
             </div>
             <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(Number(order.id.replace(/\D/g, '') || 0))}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(order.id)}>
                 <Eye className="h-4 w-4 mr-1" />
                 View
               </Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(Number(order.id.replace(/\D/g, '') || 0))}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(order.id)}>
                 <Printer className="h-4 w-4 mr-1" />
                 Print
               </Button>

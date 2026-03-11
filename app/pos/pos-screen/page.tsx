@@ -214,7 +214,9 @@ export default function VendoraPOS() {
   const [cashPay, setCashPay] = useState<number>(0);
   const [cardPay, setCardPay] = useState<number>(0);
   const [onlinePay, setOnlinePay] = useState<number>(0);
-  const [creditorName, setCreditorName] = useState("");
+  const [creditorFirstName, setCreditorFirstName] = useState("");
+  const [creditorMiddleName, setCreditorMiddleName] = useState("");
+  const [creditorLastName, setCreditorLastName] = useState("");
   const [creditorPhone, setCreditorPhone] = useState("");
   const [creditorAddress, setCreditorAddress] = useState("");
 
@@ -570,11 +572,14 @@ export default function VendoraPOS() {
   const canComplete = useMemo(() => cart.length > 0 && totals.total > 0 && balance === 0, [cart.length, totals.total, balance]);
 
   // Complete order (Local-first: Save to IndexedDB, then sync)
-  const completeOrder = useCallback(async (isCredit = false, creditInfo?: { name: string; phone: string; address: string; dueDate?: string }) => {
+  const completeOrder = useCallback(async (isCredit = false, creditInfo?: { firstName: string; middleName?: string; lastName: string; phone: string; address: string; dueDate?: string }) => {
     // For non-credit, ensure balance is 0. For credit, ignore balance as user is promising to pay later.
     if (!isCredit && !canComplete) return;
     // Prefer explicitly passed credit info over component state (state updates are async)
-    const resolvedCreditName = creditInfo?.name ?? creditorName;
+    const resolvedCreditFirstName = creditInfo?.firstName ?? creditorFirstName;
+    const resolvedCreditMiddleName = creditInfo?.middleName ?? creditorMiddleName;
+    const resolvedCreditLastName = creditInfo?.lastName ?? creditorLastName;
+    const resolvedCreditName = [resolvedCreditFirstName, resolvedCreditMiddleName, resolvedCreditLastName].filter(Boolean).join(' ');
     const resolvedCreditPhone = creditInfo?.phone ?? creditorPhone;
     const resolvedCreditAddress = creditInfo?.address ?? creditorAddress;
     const resolvedCreditDueDate = creditInfo?.dueDate ?? "";
@@ -622,12 +627,6 @@ export default function VendoraPOS() {
         ].filter(Boolean) as Array<{ method: 'cash' | 'card' | 'online'; amount: number }>
         : undefined;
 
-      // Split creditor full name into first/middle/last for the backend
-      const nameParts = resolvedCreditName.trim().split(/\s+/);
-      const creditFirstName: string = nameParts[0] ?? '';
-      const creditLastName: string = nameParts.length > 1 ? (nameParts[nameParts.length - 1] ?? '') : '';
-      const creditMiddleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : undefined;
-
       const transactionUuid = await syncService.saveTransactionLocally({
         customer_id: customerId || 1, // Fallback if Walk-in customer ID is not set for credit transactions
         customer_name: customerName,
@@ -651,9 +650,9 @@ export default function VendoraPOS() {
         store_id: selectedStore || undefined,
         is_credit: isCredit || undefined,
         credit_customer: isCredit ? {
-          first_name: creditFirstName,
-          last_name: creditLastName,
-          middle_name: creditMiddleName,
+          first_name: resolvedCreditFirstName.trim(),
+          middle_name: resolvedCreditMiddleName.trim() || undefined,
+          last_name: resolvedCreditLastName.trim(),
           contact_number: resolvedCreditPhone.trim() || undefined,
           address: resolvedCreditAddress.trim() || undefined,
         } : undefined,
@@ -856,7 +855,7 @@ export default function VendoraPOS() {
     } finally {
       setIsProcessing(false);
     }
-  }, [canComplete, customer, customers, selectedCustomerId, cart, splitPay, cashPay, cardPay, onlinePay, paid, primaryMethod, totals, change, loadInitialData, creditorName, creditorPhone, creditorAddress]);
+  }, [canComplete, customer, customers, selectedCustomerId, cart, splitPay, cashPay, cardPay, onlinePay, paid, primaryMethod, totals, change, loadInitialData, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress]);
 
   const startNewTransaction = useCallback(() => {
     // Close success modal
@@ -873,7 +872,9 @@ export default function VendoraPOS() {
     setCashPay(0);
     setCardPay(0);
     setOnlinePay(0);
-    setCreditorName("");
+    setCreditorFirstName("");
+    setCreditorMiddleName("");
+    setCreditorLastName("");
     setCreditorPhone("");
     setCreditorAddress("");
 
@@ -905,12 +906,12 @@ export default function VendoraPOS() {
     splitPay, setSplitPay, primaryMethod, setPrimaryMethod, cashPay, setCashPay,
     cardPay, setCardPay, onlinePay, setOnlinePay, amountDue, paid, balance, change,
     canComplete, setReceiptOpen, calcDeliveryFee, completeOrder, categories,
-    receiptData, startNewTransaction, creditorName, setCreditorName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress
+    receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress
   }), [screen, cart, query, barcodeInput, category, customer, notes, filtered, addToCart,
     applyBarcode, changeQty, removeItem, totals, discountAmount, canGoCheckout, discountMode,
     discountValue, taxEnabled, taxRate, fulfillment, deliveryKm, paymentType, splitPay,
     primaryMethod, cashPay, cardPay, onlinePay, amountDue, paid, balance, change,
-    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorName, creditorPhone, creditorAddress]);
+    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress]);
 
   // Show loading
   if (isLoading) {

@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge"
 import {
   BarChart3,
   TrendingUp,
-  DollarSign,
   ShoppingCart,
   Users,
   Download,
@@ -83,7 +82,7 @@ export default function ReportsPage() {
               </p>
             </div>
             <div className="bg-purple-100 p-2 sm:p-3 rounded-lg hidden sm:block">
-              <DollarSign className="h-6 w-6 text-purple-600" />
+              <span className="h-6 w-6 text-purple-600 font-bold text-xl flex items-center justify-center">₱</span>
             </div>
           </div>
         </div>
@@ -138,7 +137,7 @@ export default function ReportsPage() {
           { title: "Inventory Report", desc: "Monitor stock levels, turnover rates, and inventory health", icon: ShoppingCart, color: "text-blue-600", primary: false },
           { title: "Customer Report", desc: "Analyze customer behavior, retention, and lifetime value", icon: Users, color: "text-green-600", primary: false },
           { title: "Product Performance", desc: "Track best sellers, slow movers, and product trends", icon: TrendingUp, color: "text-orange-600", primary: false },
-          { title: "Financial Report", desc: "Review revenue, expenses, profit margins, and cash flow", icon: DollarSign, color: "text-purple-600", primary: false },
+          { title: "Financial Report", desc: "Review revenue, expenses, profit margins, and cash flow", icon: ({ className }: { className?: string }) => <span className={`font-bold ${className ?? ''}`}>₱</span>, color: "text-purple-600", primary: false },
           { title: "Custom Reports", desc: "Create and manage custom reports tailored to your needs", icon: BarChart3, color: "text-gray-600 dark:text-[#b4b4d0]", primary: false },
         ].map((report, idx) => {
           const Icon = report.icon

@@ -55,3 +55,9 @@ next-env.d.ts
 login.png
 nul
 .env*.local
+
+# API documentation (auto-generated)
+docs/api/VENDORA_API_ENDPOINTS.md
+
+# Local workflow guide
+WORKFLOW.md

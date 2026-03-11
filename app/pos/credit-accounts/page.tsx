@@ -22,7 +22,6 @@ import {
 import {
     Search,
     Plus,
-    DollarSign,
     Users,
     TrendingUp,
     AlertCircle,
@@ -524,7 +523,7 @@ export default function CreditAccountsPage() {
                                 Payment Amount (₱)
                             </Label>
                             <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-[#9898b8] font-bold text-sm flex items-center justify-center">₱</span>
                                 <Input
                                     id="paymentAmount"
                                     type="number"
