@@ -67,17 +67,17 @@ const sidebarSections = [
     items: [
       { icon: Store, label: "E-commerce Store", href: "/pos/ecommerce", comingSoon: false },
       { icon: CreditCard, label: "Payments", href: "/pos/payments", comingSoon: false },
-      { icon: BarChart3, label: "Reports and Analytics", href: "/pos/reports", comingSoon: true },
-      { icon: Megaphone, label: "Marketing and Ads", href: "/pos/marketing", comingSoon: true },
+      { icon: BarChart3, label: "Reports and Analytics", href: "/pos/reports", comingSoon: true, disabled: true },
+      { icon: Megaphone, label: "Marketing and Ads", href: "/pos/marketing", comingSoon: true, disabled: true },
     ]
   },
   {
     title: "Management",
     items: [
-      { icon: Calculator, label: "Accounting", href: "/pos/accounting", comingSoon: true },
-      { icon: BookOpen, label: "Ledger", href: "/pos/ledger", comingSoon: false },
-      { icon: Settings, label: "Settings", href: "/pos/settings", comingSoon: true },
-      { icon: HelpCircle, label: "Help and Support", href: "/pos/help", comingSoon: true },
+      { icon: Calculator, label: "Accounting", href: "/pos/accounting", comingSoon: true, disabled: true },
+      { icon: BookOpen, label: "Ledger", href: "/pos/ledger", comingSoon: false, disabled: true },
+      { icon: Settings, label: "Settings", href: "/pos/settings", comingSoon: true, disabled: true },
+      { icon: HelpCircle, label: "Help and Support", href: "/pos/help", comingSoon: true, disabled: true },
     ]
   }
 ]
@@ -475,29 +475,43 @@ export default function POSLayout({ children }: { children: ReactNode }) {
 
                           return (
                             <li key={item.href}>
-                              <Link
-                                href={item.href}
-                                onClick={() => {
-                                  setSidebarOpen(false)
-                                  setMobileSidebarMoreOpen(false)
-                                }}
-                                className={`
-                                  relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
-                                  transition-all duration-200
-                                  ${isActive
-                                    ? "bg-white text-purple-700 font-medium shadow-lg"
-                                    : "text-white/90 hover:bg-white/10 hover:text-white"
-                                  }
-                                `}
-                              >
-                                <Icon className="flex-shrink-0 w-5 h-5" />
-                                <span className="flex-1">{item.label}</span>
-                                {item.comingSoon && (
-                                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm">
-                                    Soon
-                                  </span>
-                                )}
-                              </Link>
+                              {item.disabled ? (
+                                <span
+                                  className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 cursor-default"
+                                >
+                                  <Icon className="flex-shrink-0 w-5 h-5" />
+                                  <span className="flex-1">{item.label}</span>
+                                  {item.comingSoon && (
+                                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm">
+                                      Soon
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <Link
+                                  href={item.href}
+                                  onClick={() => {
+                                    setSidebarOpen(false)
+                                    setMobileSidebarMoreOpen(false)
+                                  }}
+                                  className={`
+                                    relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
+                                    transition-all duration-200
+                                    ${isActive
+                                      ? "bg-white text-purple-700 font-medium shadow-lg"
+                                      : "text-white/90 hover:bg-white/10 hover:text-white"
+                                    }
+                                  `}
+                                >
+                                  <Icon className="flex-shrink-0 w-5 h-5" />
+                                  <span className="flex-1">{item.label}</span>
+                                  {item.comingSoon && (
+                                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm">
+                                      Soon
+                                    </span>
+                                  )}
+                                </Link>
+                              )}
                             </li>
                           )
                         })}
@@ -525,42 +539,74 @@ export default function POSLayout({ children }: { children: ReactNode }) {
 
                       return (
                         <li key={item.href}>
-                          <Link
-                            href={item.href}
-                            onClick={() => setSidebarOpen(false)}
-                            className={`
-                              relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm
-                              transition-all duration-200 group
-                              ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}
-                              ${isActive
-                                ? "bg-white text-purple-700 font-medium shadow-lg"
-                                : "text-white/90 hover:bg-white/10 hover:text-white"
-                              }
-                            `}
-                            title={sidebarCollapsed ? item.label : ''}
-                          >
-                            <Icon className="flex-shrink-0 w-5 h-5" />
-                            <span className={`flex-1 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
-                            <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm ${sidebarCollapsed ? 'lg:hidden' : ''} ${item.comingSoon ? '' : 'hidden'}`}>
-                              Soon
-                            </span>
+                          {item.disabled ? (
+                            <span
+                              className={`
+                                relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                                text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 cursor-default group
+                                ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}
+                              `}
+                              title={sidebarCollapsed ? item.label : ''}
+                            >
+                              <Icon className="flex-shrink-0 w-5 h-5" />
+                              <span className={`flex-1 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                              <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm ${sidebarCollapsed ? 'lg:hidden' : ''} ${item.comingSoon ? '' : 'hidden'}`}>
+                                Soon
+                              </span>
 
-                            {/* Tooltip for collapsed state - Laptop/Desktop only */}
-                            {sidebarCollapsed && (
-                              <div className="hidden lg:block absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none whitespace-nowrap z-[100] shadow-xl">
-                                <div className="flex items-center gap-2">
-                                  <span>{item.label}</span>
-                                  {item.comingSoon && (
-                                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 shadow-sm">
-                                      Soon
-                                    </span>
-                                  )}
+                              {/* Tooltip for collapsed state - Laptop/Desktop only */}
+                              {sidebarCollapsed && (
+                                <div className="hidden lg:block absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none whitespace-nowrap z-[100] shadow-xl">
+                                  <div className="flex items-center gap-2">
+                                    <span>{item.label}</span>
+                                    {item.comingSoon && (
+                                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 shadow-sm">
+                                        Soon
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="absolute -translate-y-1/2 border-4 border-transparent right-full top-1/2 border-r-gray-900"></div>
                                 </div>
-                                {/* Arrow */}
-                                <div className="absolute -translate-y-1/2 border-4 border-transparent right-full top-1/2 border-r-gray-900"></div>
-                              </div>
-                            )}
-                          </Link>
+                              )}
+                            </span>
+                          ) : (
+                            <Link
+                              href={item.href}
+                              onClick={() => setSidebarOpen(false)}
+                              className={`
+                                relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                                transition-all duration-200 group
+                                ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}
+                                ${isActive
+                                  ? "bg-white text-purple-700 font-medium shadow-lg"
+                                  : "text-white/90 hover:bg-white/10 hover:text-white"
+                                }
+                              `}
+                              title={sidebarCollapsed ? item.label : ''}
+                            >
+                              <Icon className="flex-shrink-0 w-5 h-5" />
+                              <span className={`flex-1 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                              <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white whitespace-nowrap shadow-sm ${sidebarCollapsed ? 'lg:hidden' : ''} ${item.comingSoon ? '' : 'hidden'}`}>
+                                Soon
+                              </span>
+
+                              {/* Tooltip for collapsed state - Laptop/Desktop only */}
+                              {sidebarCollapsed && (
+                                <div className="hidden lg:block absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none whitespace-nowrap z-[100] shadow-xl">
+                                  <div className="flex items-center gap-2">
+                                    <span>{item.label}</span>
+                                    {item.comingSoon && (
+                                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gradient-to-r from-purple-500 to-violet-600 shadow-sm">
+                                        Soon
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Arrow */}
+                                  <div className="absolute -translate-y-1/2 border-4 border-transparent right-full top-1/2 border-r-gray-900"></div>
+                                </div>
+                              )}
+                            </Link>
+                          )}
                         </li>
                       )
                     })}
