@@ -138,6 +138,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
     setCreditorPhone: _setCreditorPhone = () => { },
     creditorAddress: _creditorAddress = "",
     setCreditorAddress: _setCreditorAddress = () => { },
+    customers = [],
   } = props || {};
 
   const [activeDiscountPreset, setActiveDiscountPreset] = useState<string>("None");
@@ -148,7 +149,44 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
   const [localCreditorPhone, setLocalCreditorPhone] = useState("");
   const [localCreditorAddress, setLocalCreditorAddress] = useState("");
   const [localCreditorDueDate, setLocalCreditorDueDate] = useState("");
+  const [nameSuggestions, setNameSuggestions] = useState<{ id: number; name: string; phone?: string | null }[]>([]);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const nameSearchRef = useRef<HTMLDivElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCreditorNameSearch = (value: string) => {
+    setLocalCreditorName(value);
+    if (value.trim().length >= 1 && customers.length > 0) {
+      const filtered = customers
+        .filter(c =>
+          c.name.toLowerCase().includes(value.toLowerCase()) ||
+          (c.phone && c.phone.includes(value))
+        )
+        .slice(0, 6);
+      setNameSuggestions(filtered);
+      setShowNameSuggestions(filtered.length > 0);
+    } else {
+      setNameSuggestions([]);
+      setShowNameSuggestions(false);
+    }
+  };
+
+  const handleSelectCreditorCustomer = (c: { id: number; name: string; phone?: string | null }) => {
+    setLocalCreditorName(c.name);
+    setLocalCreditorPhone(c.phone || "");
+    setNameSuggestions([]);
+    setShowNameSuggestions(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (nameSearchRef.current && !nameSearchRef.current.contains(e.target as Node)) {
+        setShowNameSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Auto-focus barcode input when on sale screen
   useEffect(() => {

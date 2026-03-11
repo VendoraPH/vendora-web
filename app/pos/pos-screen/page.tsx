@@ -288,11 +288,12 @@ export default function VendoraPOS() {
     try {
       // STEP 1: Load from IndexedDB FIRST (instant, works offline)
       console.log('📦 Loading cached data from IndexedDB...');
-      const [localProducts, localCategories, localCustomers, localStores] = await Promise.all([
+      const [localProducts, localCategories, localCustomers, localStores, localOrders] = await Promise.all([
         db.products.toArray().then(items => items.filter(p => p.is_active === true)),
         db.categories.toArray(),
         db.customers.toArray().then(items => items.filter(c => c.status === 'active')),
-        db.stores.toArray().then(items => items.filter(s => s.is_active === true))
+        db.stores.toArray().then(items => items.filter(s => s.is_active === true)),
+        db.orders.toArray(),
       ]);
 
       localProductsCount = localProducts.length;
@@ -325,7 +326,7 @@ export default function VendoraPOS() {
         console.log(`✅ Loaded ${localCategories.length} categories from cache`);
       }
 
-      if (localCustomers.length > 0) {
+      {
         const apiCustomers = localCustomers.map(c => ({
           id: c.id,
           name: c.name,
@@ -333,8 +334,36 @@ export default function VendoraPOS() {
           phone: c.phone,
           status: c.status
         })) as ApiCustomer[];
-        setCustomers(apiCustomers);
-        console.log(`✅ Loaded ${localCustomers.length} customers from cache`);
+
+        // Also pull unique customer names from order history (covers credit customers)
+        const orderCustomerMap = new Map<string, ApiCustomer>();
+        for (const o of localOrders) {
+          const name = o.customer_name?.trim();
+          if (name && name.toLowerCase() !== 'walk-in customer') {
+            const key = name.toLowerCase();
+            if (!orderCustomerMap.has(key)) {
+              orderCustomerMap.set(key, {
+                id: o.customer_id || 0,
+                name,
+                phone: undefined,
+                status: 'active',
+                created_at: '',
+                updated_at: '',
+              } as ApiCustomer);
+            }
+          }
+        }
+
+        // Merge: start with DB customers, then add any from orders not already present
+        const merged = [...apiCustomers];
+        for (const oc of orderCustomerMap.values()) {
+          if (!merged.find(c => c.name.toLowerCase() === oc.name.toLowerCase())) {
+            merged.push(oc);
+          }
+        }
+
+        setCustomers(merged);
+        console.log(`✅ Loaded ${merged.length} customers (${apiCustomers.length} from DB + ${merged.length - apiCustomers.length} from orders)`);
       }
 
       if (localStores.length > 0) {
@@ -646,6 +675,28 @@ export default function VendoraPOS() {
 
       if (isCredit && resolvedCreditName.trim() !== "") {
         customerName = resolvedCreditName.trim();
+        // Check if customer already exists; if not, auto-register them
+        const existingCustomer = customers.find(
+          c => c.name.toLowerCase() === resolvedCreditName.trim().toLowerCase()
+        );
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else if (syncService.getOnlineStatus()) {
+          try {
+            const newCustomer = await customerService.create({
+              name: resolvedCreditName.trim(),
+              phone: resolvedCreditPhone.trim() || undefined,
+              status: "active",
+            });
+            customerId = newCustomer.id;
+            console.log(`✅ Auto-registered new customer: ${newCustomer.name} (ID: ${newCustomer.id})`);
+          } catch (e) {
+            console.warn("Could not auto-register customer, using placeholder ID", e);
+            customerId = customerId || 1;
+          }
+        } else {
+          customerId = customerId || 1;
+        }
       }
 
       // Save transaction locally FIRST (offline-first approach)
@@ -936,12 +987,13 @@ export default function VendoraPOS() {
     splitPay, setSplitPay, primaryMethod, setPrimaryMethod, cashPay, setCashPay,
     cardPay, setCardPay, onlinePay, setOnlinePay, amountDue, paid, balance, change,
     canComplete, setReceiptOpen, calcDeliveryFee, completeOrder, categories,
-    receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress
+    receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress,
+    customers,
   }), [screen, cart, query, barcodeInput, category, customer, notes, filtered, addToCart,
     applyBarcode, changeQty, removeItem, totals, discountAmount, canGoCheckout, discountMode,
     discountValue, taxEnabled, taxRate, fulfillment, deliveryKm, paymentType, splitPay,
     primaryMethod, cashPay, cardPay, onlinePay, amountDue, paid, balance, change,
-    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress]);
+    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress, customers]);
 
   // Show loading
   if (isLoading) {

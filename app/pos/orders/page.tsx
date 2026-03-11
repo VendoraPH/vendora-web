@@ -66,8 +66,17 @@ const normalizeOrderDetails = (raw: any): any => {
       ? raw.order_items
       : []
 
+  // Resolve customer display name — prefer credit_customer for credit orders
+  const cc = raw?.credit_customer;
+  const resolvedCustomerName = cc
+    ? `${cc.first_name || ''} ${cc.last_name || ''}`.trim() || raw?.customer?.name || raw?.customer_name || 'Walk-in Customer'
+    : raw?.customer?.name || raw?.customer_name || 'Walk-in Customer';
+
   return {
     ...raw,
+    customer: raw?.customer
+      ? { ...raw.customer, name: resolvedCustomerName }
+      : resolvedCustomerName,
     total: Number(raw?.total ?? 0) / 100,
     subtotal: Number(raw?.subtotal ?? 0) / 100,
     tax: Number(raw?.tax ?? 0) / 100,
