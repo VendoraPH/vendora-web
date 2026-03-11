@@ -1227,7 +1227,7 @@ function InlineOrderHistoryDialog({ open, onOpenChange, recentOrders }: any) {
                       <div className="text-xs text-gray-600 dark:text-white/60">{order.ordered_at}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₱ {(order.total || 0).toLocaleString()}</div>
+                      <div className="font-semibold">₱ {((order.total || 0) / 100).toLocaleString()}</div>
                       <div className="text-xs text-gray-600 dark:text-white/60">{order.status}</div>
                     </div>
                   </div>
