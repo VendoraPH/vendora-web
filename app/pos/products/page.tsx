@@ -190,8 +190,38 @@ const STORAGE_BASE_URL = (API_CONFIG.BASE_URL || '').replace(/\/api\/?$/, '')
  */
 const resolveImageUrl = (url: string | null | undefined): string | null => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) return url
+  if (url.startsWith('blob:')) return url
+  // The backend APP_URL may be set to an old/wrong domain — replace it with
+  // the correct storage base URL so images resolve properly.
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    return `${STORAGE_BASE_URL}${path}`
+  }
   return `${STORAGE_BASE_URL}${url.startsWith('/') ? '' : '/storage/'}${url}`
+}
+
+/**
+ * Product thumbnail with fallback to Package icon on load error
+ */
+function ProductImage({ src, alt, size }: { src: string | null | undefined; alt: string; size: number }) {
+  const [errored, setErrored] = useState(false)
+  const resolvedSrc = resolveImageUrl(src)
+
+  if (!resolvedSrc || errored) {
+    return <Package className={`${size <= 40 ? 'w-5 h-5' : 'w-6 h-6'} text-gray-400 dark:text-gray-600`} />
+  }
+
+  return (
+    <NextImage
+      src={resolvedSrc}
+      alt={alt}
+      width={size}
+      height={size}
+      className="object-cover w-full h-full"
+      unoptimized
+      onError={() => setErrored(true)}
+    />
+  )
 }
 
 /**
@@ -1099,18 +1129,7 @@ function DesktopInventoryLayout() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#1a1a35] flex-shrink-0 flex items-center justify-center">
-                            {resolveImageUrl(item.image) ? (
-                              <NextImage
-                                src={resolveImageUrl(item.image)!}
-                                alt={item.name}
-                                width={40}
-                                height={40}
-                                className="object-cover w-full h-full"
-                                unoptimized
-                              />
-                            ) : (
-                              <Package className="w-5 h-5 text-gray-400 dark:text-gray-600" />
-                            )}
+                            <ProductImage src={item.image} alt={item.name} size={40} />
                           </div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</div>
                         </div>
@@ -1248,18 +1267,7 @@ function DesktopInventoryLayout() {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-start gap-3 flex-1">
                   <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#1a1a35] flex-shrink-0 flex items-center justify-center">
-                    {resolveImageUrl(item.image) ? (
-                      <NextImage
-                        src={resolveImageUrl(item.image)!}
-                        alt={item.name}
-                        width={48}
-                        height={48}
-                        className="object-cover w-full h-full"
-                        unoptimized
-                      />
-                    ) : (
-                      <Package className="w-6 h-6 text-gray-400 dark:text-gray-600" />
-                    )}
+                    <ProductImage src={item.image} alt={item.name} size={48} />
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</h3>

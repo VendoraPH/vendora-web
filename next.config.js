@@ -15,6 +15,10 @@ const nextConfig = {
         hostname: 'vendora-api.abedubas.dev',
       },
       {
+        protocol: 'https',
+        hostname: 'staging-api.vendoraph.com',
+      },
+      {
         protocol: 'http',
         hostname: 'vendora-api.vendoraph.com',
       },
