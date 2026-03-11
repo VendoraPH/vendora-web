@@ -288,6 +288,7 @@ function DesktopInventoryLayout() {
       image_url: p.image_url, is_active: p.is_active,
       description: p.description, cost: p.cost, min_stock: p.min_stock,
       is_ecommerce: p.is_ecommerce,
+      is_low_stock: p.stock > 0 && Number(p.min_stock) > 0 && p.stock <= Number(p.min_stock),
       _status: (p as any)._status, _syncError: (p as any)._syncError,
     } as any)),
     [localProducts]
