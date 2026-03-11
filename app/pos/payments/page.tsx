@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import {
   Search,
   CreditCard,
-  DollarSign,
   TrendingUp,
   Download,
   RefreshCw,
@@ -228,7 +227,7 @@ export default function PaymentsPage() {
               </p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/30 p-2 sm:p-3 rounded-lg">
-              <DollarSign className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
+              <span className="h-4 w-4 sm:h-6 sm:w-6 text-green-600 font-bold text-base sm:text-xl flex items-center justify-center">₱</span>
             </div>
           </div>
         </div>
@@ -242,7 +241,7 @@ export default function PaymentsPage() {
               </p>
             </div>
             <div className="bg-blue-100 dark:bg-blue-900/30 p-2 sm:p-3 rounded-lg">
-              <DollarSign className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
+              <span className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600 font-bold text-base sm:text-xl flex items-center justify-center">₱</span>
             </div>
           </div>
         </div>

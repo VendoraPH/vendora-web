@@ -30,7 +30,6 @@ import {
     Image as ImageIcon,
     X,
     FileText,
-    DollarSign,
     Boxes,
     Tags,
     Plus,
@@ -644,7 +643,7 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                     <div className="space-y-2">
                                         <p className="text-xs text-white/70">Purchase Cost *</p>
                                         <div className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3">
-                                            <DollarSign className="h-4 w-4 text-white/50" />
+                                            <span className="h-4 w-4 text-white/50 font-bold text-sm flex items-center justify-center">₱</span>
                                             <Input
                                                 className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="0.00"
@@ -704,7 +703,7 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                     <div className="space-y-2">
                                         <p className="text-xs text-white/70">Selling Price</p>
                                         <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
-                                            <DollarSign className="h-4 w-4 text-emerald-400/70" />
+                                            <span className="h-4 w-4 text-emerald-400/70 font-bold text-sm flex items-center justify-center">₱</span>
                                             <Input
                                                 className="border-0 bg-transparent text-emerald-300 font-medium placeholder:text-emerald-400/30 focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="Auto-calculated"

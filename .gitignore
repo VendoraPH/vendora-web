@@ -58,3 +58,8 @@ nul
 
 # API documentation (sensitive endpoints)
 docs/api/VENDORA_API_ENDPOINTS.md
+# API documentation (auto-generated)
+docs/api/VENDORA_API_ENDPOINTS.md
+
+# Local workflow guide
+WORKFLOW.md
