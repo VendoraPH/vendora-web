@@ -117,7 +117,7 @@ const createEnv = (): Environment => ({
 
   // API Configuration
   api: {
-    baseUrl: getEnvVar("NEXT_PUBLIC_API_URL", "https://vendora-api.abedubas.dev/api"),
+    baseUrl: getEnvVar("NEXT_PUBLIC_API_URL", "https://staging-api.vendoraph.com/api"),
     version: getOptionalEnvVar("NEXT_PUBLIC_API_VERSION", ""),
     timeout: getNumberEnvVar("NEXT_PUBLIC_API_TIMEOUT", 30000),
     withCredentials: getBoolEnvVar("NEXT_PUBLIC_API_WITH_CREDENTIALS", false),
