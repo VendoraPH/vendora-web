@@ -936,12 +936,14 @@ export default function VendoraPOS() {
     splitPay, setSplitPay, primaryMethod, setPrimaryMethod, cashPay, setCashPay,
     cardPay, setCardPay, onlinePay, setOnlinePay, amountDue, paid, balance, change,
     canComplete, setReceiptOpen, calcDeliveryFee, completeOrder, categories,
-    receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress
+    receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress,
+    customers
   }), [screen, cart, query, barcodeInput, category, customer, notes, filtered, addToCart,
     applyBarcode, changeQty, removeItem, totals, discountAmount, canGoCheckout, discountMode,
     discountValue, taxEnabled, taxRate, fulfillment, deliveryKm, paymentType, splitPay,
     primaryMethod, cashPay, cardPay, onlinePay, amountDue, paid, balance, change,
-    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress]);
+    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress,
+    customers]);
 
   // Show loading
   if (isLoading) {
