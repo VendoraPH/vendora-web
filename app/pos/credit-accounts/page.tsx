@@ -326,10 +326,7 @@ export default function CreditAccountsPage() {
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Refresh
                         </Button>
-                        <Button className="bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-200 dark:shadow-none transition-all duration-200 hover:shadow-xl hover:shadow-purple-200 dark:hover:shadow-none hover:-translate-y-0.5 w-full sm:w-auto">
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Credit Account
-                        </Button>
+                        {/* New Credit Account button hidden for now */}
                     </div>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-purple-500/20 via-purple-500/40 to-purple-500/20" />
