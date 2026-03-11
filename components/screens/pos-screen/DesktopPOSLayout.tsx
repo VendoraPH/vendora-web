@@ -139,7 +139,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
     setCreditorPhone: _setCreditorPhone = () => { },
     creditorAddress: _creditorAddress = "",
     setCreditorAddress: _setCreditorAddress = () => { },
-    customers = [],
+    customers = [] as NonNullable<POSScreenProps["customers"]>,
   } = props || {};
 
   const [activeDiscountPreset, setActiveDiscountPreset] = useState<string>("None");
@@ -152,7 +152,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
   const [localCreditorDueDate, setLocalCreditorDueDate] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [searchResults, setSearchResults] = useState<{ id: number; name: string; phone?: string | null }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: number; name: string; phone?: string | null; address?: string | null }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const customerSearchRef = useRef<HTMLDivElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1184,6 +1184,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
                         setLocalMiddleName(parsed.middle);
                         setLocalLastName(parsed.last);
                         setLocalCreditorPhone(c.phone ?? "");
+                        setLocalCreditorAddress(c.address ?? "");
                         setCustomerSearch(c.name);
                         setShowCustomerDropdown(false);
                       }}

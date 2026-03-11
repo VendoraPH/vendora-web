@@ -15,6 +15,7 @@ export interface ApiCustomer {
     name: string
     email?: string | null
     phone?: string | null
+    address?: string | null
     orders_count?: number
     total_spent?: number
     status: "active" | "inactive" | "vip"
