@@ -1,7 +1,8 @@
 "use client"
 
+import { ComponentType } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react"
+import { TrendingUp, TrendingDown } from "lucide-react"
 
 interface StatCard {
   title: string
@@ -9,7 +10,7 @@ interface StatCard {
   change: string
   changeType: "positive" | "negative"
   subtitle?: string
-  icon: LucideIcon
+  icon: ComponentType<{ className?: string }>
 }
 
 interface DashboardStatsProps {
