@@ -428,10 +428,10 @@ function DesktopOrdersLayout() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(order.numericId)}>
+                        <Button size="sm" variant="ghost" onClick={() => loadOrderDetails(String(order.numericId))}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => printInvoice(order.numericId)}>
+                        <Button size="sm" variant="ghost" onClick={() => printInvoice(String(order.numericId))}>
                           <Printer className="h-4 w-4" />
                         </Button>
                       </div>
@@ -483,11 +483,11 @@ function DesktopOrdersLayout() {
               </div>
             </div>
             <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(order.numericId)}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadOrderDetails(String(order.numericId))}>
                 <Eye className="h-4 w-4 mr-1" />
                 View
               </Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(order.numericId)}>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => printInvoice(String(order.numericId))}>
                 <Printer className="h-4 w-4 mr-1" />
                 Print
               </Button>
