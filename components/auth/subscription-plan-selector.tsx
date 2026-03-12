@@ -24,56 +24,43 @@ export interface SubscriptionPlan {
   popular?: boolean
   trialDays?: number
   description?: string
+  hidden?: boolean
 }
 
 const plans: SubscriptionPlan[] = [
   {
     id: "free",
-    name: "14-Day Free Trial",
+    name: "1-Month Free Trial",
     price: "0",
-    trialDays: 14,
+    trialDays: 30,
     description: "No credit card required",
     features: [
-      "Up to 10 products",
-      "1 POS terminal",
-      "Basic reporting",
-      "Community support",
+      "Full access to all POS features",
+      "Product and inventory management",
+      "Sales tracking with basic reports",
+      "Analytics dashboard preview",
+      "E-commerce store setup included",
+      "Customer and transaction management",
+      "No payment required during the trial",
+      "Option to upgrade anytime to continue",
     ],
   },
   {
-    id: "basic_monthly",
-    name: "Basic",
-    price: 29,
-    yearlyPrice: 290,
+    id: "business_monthly",
+    name: "Business",
+    price: 250,
     interval: "monthly",
-    trialDays: 14,
-    description: "Ideal for small businesses",
+    description: "For serious vendors",
+    hidden: true,
     features: [
-      "Up to 100 products",
-      "1 POS terminal",
-      "Basic analytics",
-      "Email support",
-      "Mobile app access",
-    ],
-  },
-  {
-    id: "pro_monthly",
-    name: "Pro",
-    price: 79,
-    yearlyPrice: 790,
-    interval: "monthly",
-    popular: true,
-    trialDays: 14,
-    description: "Best for growing businesses",
-    features: [
-      "Unlimited products",
-      "5 POS terminals",
-      "Advanced analytics",
-      "Priority support",
-      "Mobile app access",
-      "Inventory management",
-      "Customer database",
-      "Multi-location support",
+      "Full POS system with uninterrupted access",
+      "Integrated e-commerce website for your store",
+      "Complete inventory and stock tracking",
+      "Detailed sales reports and analytics",
+      "Customer management and sales history",
+      "Credit management and ledger tracking",
+      "Secure cloud storage for business data",
+      "Continuous updates with priority support",
     ],
   },
 ]
@@ -124,6 +111,9 @@ export function SubscriptionPlanSelector({
     return Math.round(((monthlyTotal - yearlyPrice) / monthlyTotal) * 100)
   }
 
+  const visiblePlans = plans.filter((p) => !p.hidden)
+  const showToggle = showYearlyToggle && visiblePlans.some((p) => p.yearlyPrice)
+
   return (
     <div className={cn("w-full max-w-[1400px] mx-auto px-4", className)}>
       <div className="text-center mb-8">
@@ -131,11 +121,11 @@ export function SubscriptionPlanSelector({
           Choose Your Plan
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Start free for 14 days — no credit card required. Upgrade anytime.
+          Start free for 1 month — no credit card required. Upgrade anytime.
         </p>
 
         {/* Billing Interval Toggle */}
-        {showYearlyToggle && (
+        {showToggle && (
           <div className="flex items-center justify-center gap-3 mt-6">
             <button
               onClick={() => setBillingInterval("monthly")}
@@ -171,8 +161,13 @@ export function SubscriptionPlanSelector({
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr">
-        {plans.map((plan) => {
+      <div className={cn(
+        "grid gap-6 auto-rows-fr",
+        visiblePlans.length === 1
+          ? "grid-cols-1 max-w-md mx-auto"
+          : "grid-cols-1 md:grid-cols-3"
+      )}>
+        {visiblePlans.map((plan) => {
           const displayPrice = getDisplayPrice(plan)
           const savings = getSavingsPercentage(plan)
           const isSelected = selectedPlan === plan.id
@@ -244,14 +239,14 @@ export function SubscriptionPlanSelector({
                       <div className="flex flex-col items-center gap-2">
                         <span className="text-4xl font-bold text-purple-600 dark:text-purple-400">Free</span>
                         <Badge className="text-xs font-semibold px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300">
-                          14-Day Trial
+                          1-Month Trial
                         </Badge>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center">
                         <div>
                           <span className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                            ${displayPrice}
+                            P{displayPrice}
                           </span>
                           <span className="text-gray-500 dark:text-gray-400 ml-2">
                             /{billingInterval === "yearly" ? "year" : "month"}
@@ -259,7 +254,7 @@ export function SubscriptionPlanSelector({
                         </div>
                         {billingInterval === "yearly" && (
                           <span className="text-sm text-gray-500 mt-1">
-                            ${(Number(displayPrice) / 12).toFixed(2)}/month billed annually
+                            P{(Number(displayPrice) / 12).toFixed(2)}/month billed annually
                           </span>
                         )}
                       </div>
