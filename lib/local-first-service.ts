@@ -784,6 +784,12 @@ const payments = {
         });
       }
 
+      // Clean up temp payments (created offline, now replaced by server records)
+      const tempPayments = await db.payments.where('id').below(0).toArray();
+      for (const temp of tempPayments) {
+        await db.payments.delete(temp.id);
+      }
+
       // Clean up synced records no longer on server
       const serverIds = new Set(apiPayments.map(p => p.id));
       const allLocal = await db.payments.where('_status').equals('synced').toArray();
