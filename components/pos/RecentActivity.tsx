@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, Package as PackageIcon, ShoppingCart, Box, Plus, Edit } from "lucide-react"
+import { FileText, Package as PackageIcon, ShoppingCart, Box, Plus, Edit, Users, Tag, Wallet, Building2 } from "lucide-react"
 import type { RecentActivity as RecentActivityData } from "@/types/dashboard"
 
 type RecentActivityProps = {
@@ -23,6 +23,18 @@ function getActivityStyle(action: string, modelType: string) {
   }
   if (modelType.includes("Inventory")) {
     return { icon: Box, color: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30" }
+  }
+  if (modelType.includes("Customer")) {
+    return { icon: Users, color: "text-teal-600 bg-teal-50 dark:text-teal-400 dark:bg-teal-900/30" }
+  }
+  if (modelType.includes("Category")) {
+    return { icon: Tag, color: "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-900/30" }
+  }
+  if (modelType.includes("Payment")) {
+    return { icon: Wallet, color: "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30" }
+  }
+  if (modelType.includes("Store")) {
+    return { icon: Building2, color: "text-violet-600 bg-violet-50 dark:text-violet-400 dark:bg-violet-900/30" }
   }
   // Default
   return { icon: FileText, color: "text-gray-600 bg-gray-50 dark:text-[#b4b4d0] dark:bg-[#13132a]" }
@@ -56,6 +68,7 @@ export function RecentActivity({ data, variant = "default" }: RecentActivityProp
     return {
       icon: style.icon,
       title: item.message,
+      userName: item.user_name,
       time: getRelativeTime(item.created_at),
       color: style.color,
     }
@@ -78,7 +91,12 @@ export function RecentActivity({ data, variant = "default" }: RecentActivityProp
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-700 dark:text-[#e0e0f0]">{activity.title}</p>
-                  <p className="text-xs text-gray-500 dark:text-[#b4b4d0] mt-0.5">{activity.time}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {activity.userName && (
+                      <span className="text-xs text-gray-400 dark:text-[#9898b8]">by {activity.userName}</span>
+                    )}
+                    <span className="text-xs text-gray-500 dark:text-[#b4b4d0]">{activity.time}</span>
+                  </div>
                 </div>
               </div>
             )

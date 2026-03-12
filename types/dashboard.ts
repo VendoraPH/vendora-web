@@ -88,6 +88,7 @@ export interface ActivityItem {
     model_type: string
     model_id: number
     message: string
+    user_name: string | null
     created_at: string
 }
 
