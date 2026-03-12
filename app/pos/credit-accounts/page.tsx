@@ -118,10 +118,10 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             email,
             address,
         },
-        totalAmount: Number(c.amount) || 0,
-        paidAmount: Number(c.paid_amount) || 0,
-        remainingBalance: Number(c.balance) || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
+        totalAmount: Number(c.amount) / 100 || 0,
+        paidAmount: Number(c.paid_amount) / 100 || 0,
+        remainingBalance: Number(c.balance) / 100 || 0,
+        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
         dueDate: c.due_date ?? undefined,
         payments: [],
         items: [],
@@ -189,57 +189,75 @@ export default function CreditAccountsPage() {
         setIsLoading(true)
         setError(null)
         try {
-            // Try the direct credits endpoint first
-            const response = await creditService.getAll({ per_page: 200 })
-            const items: ApiCredit[] = Array.isArray(response) ? response : (response.data ?? [])
+            // Fetch all customers and their credits in parallel with the global list
+            const [customersResp, globalResp] = await Promise.allSettled([
+                customerService.getAll({ per_page: 500 }),
+                creditService.getAll({ per_page: 500 }),
+            ])
 
-            if (items.length > 0) {
-                setRawAccounts(items)
-                return
+            // Build a customer lookup map for name enrichment
+            const customerMap = new Map<number, { id: number; name: string; phone?: string | null; email?: string | null; address?: string | null }>()
+            if (customersResp.status === "fulfilled") {
+                const raw = customersResp.value
+                const list = Array.isArray(raw) ? raw : (raw.data ?? [])
+                list.forEach(c => customerMap.set(c.id, c))
             }
 
-            // Fallback: GET /api/credits not available — fetch credits per customer
-            const customersResp = await customerService.getAll({ per_page: 500 })
-            const customers = Array.isArray(customersResp)
-                ? customersResp
-                : (customersResp.data ?? [])
-
-            if (customers.length === 0) {
-                setRawAccounts([])
-                return
-            }
-
-            // Fetch each customer's credits in parallel
-            const results = await Promise.allSettled(
-                customers.map(c => creditService.getByCustomer(c.id).then(data => ({ data, customer: c })))
-            )
-
-            const allCredits: ApiCredit[] = []
-            for (const result of results) {
-                if (result.status === "fulfilled") {
-                    const { data, customer } = result.value
-                    const arr: ApiCredit[] = Array.isArray(data)
-                        ? (data as ApiCredit[])
-                        : ((data as { data?: ApiCredit[] }).data ?? [])
-                    // Attach customer info so mapApiCredit can resolve the name.
-                    // Override if credit.customer has no name (API may return partial object).
-                    const enriched = arr.map(credit => ({
-                        ...credit,
-                        customer: credit.customer?.name
-                            ? credit.customer
-                            : {
-                                id: customer.id,
-                                name: customer.name,
-                                phone: customer.phone ?? null,
-                                email: customer.email ?? null,
-                                address: customer.address ?? null,
-                            },
-                    }))
-                    allCredits.push(...enriched)
+            const enrichCredit = (credit: ApiCredit): ApiCredit => {
+                const c = customerMap.get(credit.customer_id)
+                if (!c) return credit
+                return {
+                    ...credit,
+                    customer: credit.customer?.name
+                        ? credit.customer
+                        : { id: c.id, name: c.name, phone: c.phone ?? null, email: c.email ?? null, address: c.address ?? null },
                 }
             }
 
-            setRawAccounts(allCredits)
+            // Collect credits from global endpoint (may return some or all)
+            const globalCredits: ApiCredit[] = []
+            if (globalResp.status === "fulfilled") {
+                const raw = globalResp.value
+                const list: ApiCredit[] = Array.isArray(raw) ? raw : (raw.data ?? [])
+                globalCredits.push(...list.map(enrichCredit))
+            }
+
+            // Always fetch per-customer too — guarantees all customers are covered
+            const customers = [...customerMap.values()]
+            const perCustomerResults = await Promise.allSettled(
+                customers.map(c =>
+                    creditService.getByCustomer(c.id).then(data => ({ data, customer: c }))
+                )
+            )
+
+            const perCustomerCredits: ApiCredit[] = []
+            for (const result of perCustomerResults) {
+                if (result.status !== "fulfilled") continue
+                const { data, customer } = result.value
+                const arr: ApiCredit[] = Array.isArray(data)
+                    ? (data as ApiCredit[])
+                    : ((data as { data?: ApiCredit[] }).data ?? [])
+                arr.forEach(credit => {
+                    perCustomerCredits.push({
+                        ...credit,
+                        customer: credit.customer?.name
+                            ? credit.customer
+                            : { id: customer.id, name: customer.name, phone: customer.phone ?? null, email: customer.email ?? null, address: customer.address ?? null },
+                    })
+                })
+            }
+
+            // Merge both sources, deduplicate by credit id
+            const seen = new Set<number>()
+            const merged: ApiCredit[] = []
+            for (const credit of [...globalCredits, ...perCustomerCredits]) {
+                if (!seen.has(credit.id)) {
+                    seen.add(credit.id)
+                    merged.push(credit)
+                }
+            }
+
+            setRawAccounts(merged)
         } catch (err: unknown) {
             const e = err as { message?: string }
             setError(e?.message || "Failed to load credit accounts")

@@ -17,10 +17,25 @@ import { endpoints } from "@/lib/api-endpoints"
 // Types
 // ---------------------------------------------------------------------------
 
+/** A single order item inside a credit's associated order */
+export interface ApiCreditOrderItem {
+    id: number
+    product_id?: number | null
+    product_name?: string | null
+    product?: { id: number; name: string; price?: number | null } | null
+    quantity: number
+    price?: number | null
+    unit_price?: number | null
+    sale_price?: number | null
+    total?: number | null
+}
+
 /** A single credit record as returned by the API */
 export interface ApiCredit {
     id: number
     customer_id: number
+    /** ID of the order that created this credit */
+    order_id?: number | null
     customer?: {
         id: number
         name: string
@@ -41,17 +56,7 @@ export interface ApiCredit {
         id: number
         order_number?: string | null
         ordered_at?: string | null
-        items?: Array<{
-            id: number
-            product_id?: number | null
-            product_name?: string | null
-            product?: { id: number; name: string; price?: number | null } | null
-            quantity: number
-            price?: number | null
-            unit_price?: number | null
-            sale_price?: number | null
-            total?: number | null
-        }>
+        items?: ApiCreditOrderItem[]
     } | null
     /** Total original credit amount */
     amount: number
@@ -85,6 +90,7 @@ export interface CreditPaymentPayload {
 export interface CreditFilters {
     search?: string
     status?: "active" | "overdue" | "paid" | "defaulted"
+    customer_id?: number
     page?: number
     per_page?: number
 }
@@ -121,8 +127,10 @@ export const creditService = {
             }
             return response
         } catch (err: any) {
-            // 404 = endpoint not found or no records — treat as empty
+            // 404 may mean the endpoint exists but returned no results, OR the
+            // endpoint does not exist yet. Log so it is visible during development.
             if (err?.response?.status === 404) {
+                console.warn("GET /api/credits returned 404 — endpoint may not exist or has no data")
                 return { data: [] }
             }
             throw err

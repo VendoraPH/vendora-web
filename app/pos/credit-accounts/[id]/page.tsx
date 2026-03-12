@@ -39,7 +39,7 @@ import {
     TrendingUp,
     ShoppingBag,
 } from "lucide-react"
-import { creditService } from "@/services"
+import { creditService, orderService } from "@/services"
 import type { ApiCredit } from "@/services"
 import Swal from "sweetalert2"
 import { getOnlineStatus } from "@/lib/sync-service"
@@ -127,27 +127,29 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
     const address = c.customer?.address ?? cc?.address ?? undefined
 
     // Map order items if present
-    const items: PurchasedItem[] = (c.order?.items ?? []).map((item, idx) => {
-        const name = item.product_name ?? item.product?.name ?? `Product #${item.product_id ?? idx + 1}`
+    const items: PurchasedItem[] = (c.order?.items ?? []).map((item: any, idx: number) => {
+        const name =
+            item.product_name ??
+            item.product?.name ??
+            item.name ??
+            `Product #${item.product_id ?? idx + 1}`
 
-        // Use product catalog price as the authoritative source (in PHP pesos).
-        // item.price may be stored in centavos by the backend, so prefer
-        // item.product.price (catalog price in pesos) when available.
-        const rawPrice =
-            item.product?.price ??
-            item.unit_price ??
-            item.sale_price ??
-            item.price ??
-            0
-        const unitPrice = Number(rawPrice) || 0
+        // Prefer catalog price (already in pesos). Fall back to stored item price.
+        // item.price from orders API is in centavos → divide by 100.
+        const catalogPrice = item.product?.price ?? item.unit_price ?? item.sale_price ?? null
+        const storedPrice = item.price != null ? Number(item.price) / 100 : 0
+        const unitPrice = catalogPrice != null ? Number(catalogPrice) : storedPrice
 
-        const qty = Number(item.quantity) || 1
+        const qty = Number(item.quantity ?? item.qty) || 1
+        // item.total from orders API is also in centavos
+        const lineTotal = item.total != null ? Number(item.total) / 100 : unitPrice * qty
+
         return {
-            id: item.id,
+            id: item.id ?? idx,
             name,
             quantity: qty,
             unitPrice,
-            total: Number(item.total) || unitPrice * qty,
+            total: lineTotal,
         }
     })
 
@@ -160,10 +162,10 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             email: c.customer?.email ?? undefined,
             address,
         },
-        totalAmount: Number(c.amount) || 0,
-        paidAmount: Number(c.paid_amount) || 0,
-        remainingBalance: Number(c.balance) || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
+        totalAmount: Number(c.amount) / 100 || 0,
+        paidAmount: Number(c.paid_amount) / 100 || 0,
+        remainingBalance: Number(c.balance) / 100 || 0,
+        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
         dueDate: c.due_date ?? undefined,
         status,
         createdAt: c.created_at,
@@ -194,6 +196,29 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
         setError(null)
         try {
             const data = await creditService.getById(accountId)
+
+            // If the credit has an order_id but the API didn't embed order items,
+            // fetch the order separately so we can display the credited products.
+            if (data.order_id && (!data.order?.items || data.order.items.length === 0)) {
+                try {
+                    const order = await orderService.getById(data.order_id)
+                    const rawOrder = order as any
+                    const rawItems = Array.isArray(rawOrder?.items)
+                        ? rawOrder.items
+                        : Array.isArray(rawOrder?.order_items)
+                            ? rawOrder.order_items
+                            : []
+                    data.order = {
+                        id: rawOrder.id ?? data.order_id,
+                        order_number: rawOrder.order_number ?? null,
+                        ordered_at: rawOrder.ordered_at ?? null,
+                        items: rawItems,
+                    }
+                } catch {
+                    // Order fetch failed — show credit info without products
+                }
+            }
+
             setRawAccount(data)
         } catch (err: unknown) {
             const e = err as { message?: string }
