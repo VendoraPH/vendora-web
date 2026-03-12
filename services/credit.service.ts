@@ -28,6 +28,31 @@ export interface ApiCredit {
         email?: string | null
         address?: string | null
     }
+    /** Credit customer info as stored from order credit_customer object */
+    credit_customer?: {
+        first_name?: string | null
+        middle_name?: string | null
+        last_name?: string | null
+        contact_number?: string | null
+        address?: string | null
+    }
+    /** Order associated with this credit (may be included in detail response) */
+    order?: {
+        id: number
+        order_number?: string | null
+        ordered_at?: string | null
+        items?: Array<{
+            id: number
+            product_id?: number | null
+            product_name?: string | null
+            product?: { id: number; name: string; price?: number | null } | null
+            quantity: number
+            price?: number | null
+            unit_price?: number | null
+            sale_price?: number | null
+            total?: number | null
+        }>
+    } | null
     /** Total original credit amount */
     amount: number
     /** Total amount paid so far */

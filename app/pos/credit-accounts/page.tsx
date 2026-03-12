@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,11 +34,9 @@ import {
 } from "lucide-react"
 import { CreditAccountsDataTable } from "@/components/pos/CreditAccountsDataTable"
 import { CreditAccountCards } from "@/components/pos/CreditAccountCards"
-import { creditService } from "@/services"
+import { creditService, customerService } from "@/services"
 import type { ApiCredit } from "@/services"
 import Swal from "sweetalert2"
-import { useOfflineData } from "@/hooks/use-offline-data"
-import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 import { getOnlineStatus } from "@/lib/sync-service"
 
 // ---------------------------------------------------------------------------
@@ -91,40 +89,6 @@ interface CreditAccount {
     lastPaymentDate?: string
 }
 
-// ---------------------------------------------------------------------------
-// Dummy data — used when the API credits endpoint is unavailable
-// ---------------------------------------------------------------------------
-const DUMMY_CREDITS: CreditAccount[] = [
-    {
-        id: 1,
-        customer: { id: 1, name: "Juan dela Cruz", phone: "09171234567", email: "juan@email.com", address: "123 Rizal St, Manila" },
-        totalAmount: 5000, paidAmount: 2000, remainingBalance: 3000,
-        status: "active", createdAt: "2026-02-01T08:00:00Z",
-        payments: [], items: [],
-    },
-    {
-        id: 2,
-        customer: { id: 2, name: "Maria Santos", phone: "09281234567", email: "maria@email.com", address: "456 Mabini Ave, Quezon City" },
-        totalAmount: 8500, paidAmount: 8500, remainingBalance: 0,
-        status: "paid", createdAt: "2026-01-15T08:00:00Z",
-        payments: [], items: [],
-    },
-    {
-        id: 3,
-        customer: { id: 3, name: "Pedro Reyes", phone: "09351234567", address: "789 Luna St, Cebu City" },
-        totalAmount: 12000, paidAmount: 3000, remainingBalance: 9000,
-        dueDate: "2026-03-01T00:00:00Z",
-        status: "overdue", createdAt: "2026-01-10T08:00:00Z",
-        payments: [], items: [],
-    },
-    {
-        id: 4,
-        customer: { id: 4, name: "Ana Gomez", phone: "09461234567", email: "ana@email.com" },
-        totalAmount: 3500, paidAmount: 1000, remainingBalance: 2500,
-        status: "active", createdAt: "2026-02-20T08:00:00Z",
-        payments: [], items: [],
-    },
-]
 
 // ---------------------------------------------------------------------------
 // Map API credit → UI CreditAccount shape
@@ -135,21 +99,31 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             ? c.status
             : "active"
 
+    // Resolve name from customer object or credit_customer fields
+    const cc = c.credit_customer
+    const fullName = c.customer?.name
+        ?? (cc ? [cc.first_name, cc.middle_name, cc.last_name].filter(Boolean).join(" ") : null)
+        ?? `Customer #${c.customer_id}`
+
+    const phone = c.customer?.phone ?? cc?.contact_number ?? undefined
+    const email = c.customer?.email ?? undefined
+    const address = c.customer?.address ?? cc?.address ?? undefined
+
     return {
         id: c.id,
         customer: {
             id: c.customer?.id ?? c.customer_id,
-            name: c.customer?.name ?? `Customer #${c.customer_id}`,
-            phone: c.customer?.phone ?? undefined,
-            email: c.customer?.email ?? undefined,
-            address: c.customer?.address ?? undefined,
+            name: fullName,
+            phone: phone ?? undefined,
+            email,
+            address,
         },
         totalAmount: Number(c.amount) || 0,
         paidAmount: Number(c.paid_amount) || 0,
         remainingBalance: Number(c.balance) || 0,
         creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
         dueDate: c.due_date ?? undefined,
-        payments: [],   // individual transactions not provided by list endpoint
+        payments: [],
         items: [],
         status,
         createdAt: c.created_at,
@@ -206,19 +180,79 @@ export default function CreditAccountsPage() {
 
     const isDesktop = useIsDesktop()
 
-    // ── Fetch via offline-first hook ──────────────────────────────────────
-    const { data: rawAccounts, isLoading, isStale, lastSyncedAt, error, refresh } = useOfflineData<any[]>(
-        "credit-accounts",
-        async () => {
+    // ── Fetch directly from API ───────────────────────────────────────────
+    const [rawAccounts, setRawAccounts] = useState<ApiCredit[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    const fetchAccounts = useCallback(async () => {
+        setIsLoading(true)
+        setError(null)
+        try {
+            // Try the direct credits endpoint first
             const response = await creditService.getAll({ per_page: 200 })
-            return Array.isArray(response) ? response : (response as any).data ?? []
-        },
-        { staleAfterMinutes: 5 }
-    )
-    const accounts = useMemo(() => {
-        const mapped = (rawAccounts ?? []).map(mapApiCredit)
-        return mapped.length > 0 ? mapped : DUMMY_CREDITS
-    }, [rawAccounts])
+            const items: ApiCredit[] = Array.isArray(response) ? response : (response.data ?? [])
+
+            if (items.length > 0) {
+                setRawAccounts(items)
+                return
+            }
+
+            // Fallback: GET /api/credits not available — fetch credits per customer
+            const customersResp = await customerService.getAll({ per_page: 500 })
+            const customers = Array.isArray(customersResp)
+                ? customersResp
+                : (customersResp.data ?? [])
+
+            if (customers.length === 0) {
+                setRawAccounts([])
+                return
+            }
+
+            // Fetch each customer's credits in parallel
+            const results = await Promise.allSettled(
+                customers.map(c => creditService.getByCustomer(c.id).then(data => ({ data, customer: c })))
+            )
+
+            const allCredits: ApiCredit[] = []
+            for (const result of results) {
+                if (result.status === "fulfilled") {
+                    const { data, customer } = result.value
+                    const arr: ApiCredit[] = Array.isArray(data)
+                        ? (data as ApiCredit[])
+                        : ((data as { data?: ApiCredit[] }).data ?? [])
+                    // Attach customer info so mapApiCredit can resolve the name.
+                    // Override if credit.customer has no name (API may return partial object).
+                    const enriched = arr.map(credit => ({
+                        ...credit,
+                        customer: credit.customer?.name
+                            ? credit.customer
+                            : {
+                                id: customer.id,
+                                name: customer.name,
+                                phone: customer.phone ?? null,
+                                email: customer.email ?? null,
+                                address: customer.address ?? null,
+                            },
+                    }))
+                    allCredits.push(...enriched)
+                }
+            }
+
+            setRawAccounts(allCredits)
+        } catch (err: unknown) {
+            const e = err as { message?: string }
+            setError(e?.message || "Failed to load credit accounts")
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
+    useEffect(() => { fetchAccounts() }, [fetchAccounts])
+
+    const refresh = fetchAccounts
+
+    const accounts = useMemo(() => rawAccounts.map(mapApiCredit), [rawAccounts])
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const toggleExpanded = (accountId: number) => {
@@ -303,7 +337,6 @@ export default function CreditAccountsPage() {
     // ── Render ─────────────────────────────────────────────────────────────
     return (
         <div className="space-y-6">
-            <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
             {/* Header */}
             <div className="relative pb-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -447,6 +480,12 @@ export default function CreditAccountsPage() {
                 <div className="flex items-center justify-center py-16 gap-3 text-gray-500 dark:text-[#b4b4d0]">
                     <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
                     <span className="text-sm font-medium">Loading credit accounts…</span>
+                </div>
+            ) : accounts.length === 0 && !error ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400 dark:text-[#9898b8]">
+                    <CreditCard className="w-12 h-12 opacity-30" />
+                    <p className="text-sm font-medium">No credit accounts found</p>
+                    <p className="text-xs">Credit accounts created via POS will appear here</p>
                 </div>
             ) : (
                 /* Responsive Layout */
