@@ -30,7 +30,7 @@ const createVendorSchema = z.object({
     password: z.string().min(8, "Password must be at least 8 characters"),
     password_confirmation: z.string(),
     business_name: z.string().min(2, "Business name must be at least 2 characters"),
-    subscription_plan: z.enum(["free", "basic", "premium"], {
+    subscription_plan: z.enum(["free", "business"], {
         error: () => ({ message: "Please select a subscription plan" }),
     }),
 }).refine((data) => data.password === data.password_confirmation, {
@@ -105,20 +105,14 @@ export default function CreateVendorPage() {
     const subscriptionPlans = [
         {
             value: "free",
-            label: "Free",
-            description: "Basic features, limited products",
+            label: "1-Month Free Trial",
+            description: "Full access for 30 days, no payment required",
             color: "bg-gray-100 text-gray-700",
         },
         {
-            value: "basic",
-            label: "Basic",
-            description: "Standard features, more products",
-            color: "bg-blue-100 text-blue-700",
-        },
-        {
-            value: "premium",
-            label: "Premium",
-            description: "All features, unlimited products",
+            value: "business",
+            label: "Business",
+            description: "P250/month, all features, priority support",
             color: "bg-purple-100 text-purple-700",
         },
     ]
@@ -263,7 +257,7 @@ export default function CreateVendorPage() {
                                         <Label htmlFor="subscription_plan">Subscription Plan <span className="text-red-500">*</span></Label>
                                         <Select
                                             value={selectedPlan}
-                                            onValueChange={(value: "free" | "basic" | "premium") => setValue("subscription_plan", value)}
+                                            onValueChange={(value: "free" | "business") => setValue("subscription_plan", value)}
                                         >
                                             <SelectTrigger
                                                 id="subscription_plan"
