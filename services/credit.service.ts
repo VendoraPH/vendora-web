@@ -28,6 +28,14 @@ export interface ApiCredit {
         email?: string | null
         address?: string | null
     }
+    /** Credit customer info as stored from order credit_customer object */
+    credit_customer?: {
+        first_name?: string | null
+        middle_name?: string | null
+        last_name?: string | null
+        contact_number?: string | null
+        address?: string | null
+    }
     /** Total original credit amount */
     amount: number
     /** Total amount paid so far */
