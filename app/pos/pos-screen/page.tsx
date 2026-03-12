@@ -1056,7 +1056,9 @@ export default function VendoraPOS() {
                 setOrderHistoryOpen(true);
                 try {
                   const orders = await orderService.getAll({});
-                  setRecentOrders(extractDataArray(orders));
+                  const list = extractDataArray(orders);
+                  list.sort((a: any, b: any) => new Date(b.created_at || b.ordered_at || 0).getTime() - new Date(a.created_at || a.ordered_at || 0).getTime());
+                  setRecentOrders(list);
                 } catch { /* Silent fail */ }
               }}
             >
@@ -1258,6 +1260,21 @@ function InlineSettingsDialog({ open, onOpenChange, taxEnabled, setTaxEnabled, t
 }
 
 function InlineOrderHistoryDialog({ open, onOpenChange, recentOrders }: any) {
+  const formatOrderDateTime = (order: any) => {
+    const raw = order.created_at || order.ordered_at;
+    if (!raw) return "—";
+    const date = new Date(raw);
+    if (isNaN(date.getTime())) return raw;
+    return date.toLocaleString("en-PH", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-2xl bg-white dark:bg-[#201836] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -1275,12 +1292,12 @@ function InlineOrderHistoryDialog({ open, onOpenChange, recentOrders }: any) {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="font-medium">{order.order_number || `ORD-${order.id}`}</div>
-                      <div className="text-sm text-gray-600 dark:text-white/60">{order.customer || "Walk-in"}</div>
-                      <div className="text-xs text-gray-600 dark:text-white/60">{order.ordered_at}</div>
+                      <div className="text-sm text-gray-600 dark:text-white/60">{order.customer?.name || order.customer || "Walk-in"}</div>
+                      <div className="text-xs text-gray-600 dark:text-white/60">{formatOrderDateTime(order)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₱ {((order.total || 0) / 100).toLocaleString()}</div>
-                      <div className="text-xs text-gray-600 dark:text-white/60">{order.status}</div>
+                      <div className="font-semibold">₱{(order.total || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-xs text-gray-600 dark:text-white/60 capitalize">{order.status}</div>
                     </div>
                   </div>
                 </div>

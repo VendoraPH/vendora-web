@@ -186,17 +186,26 @@ const getErrorMessage = (error: unknown): { message: string; isAuthError: boolea
 const STORAGE_BASE_URL = (API_CONFIG.BASE_URL || '').replace(/\/api\/?$/, '')
 
 /**
- * Resolve image URL — handles relative paths from API storage
+ * Resolve image URL — handles relative paths and Laravel local dev placeholder domain.
+ * The API may return images with `vendora.test` or `localhost` domain (local dev APP_URL).
+ * We replace those with the correct production storage base URL.
+ * If the URL already has a real domain, return it as-is.
  */
 const resolveImageUrl = (url: string | null | undefined): string | null => {
   if (!url) return null
-  if (url.startsWith('blob:')) return url
-  // The backend APP_URL may be set to an old/wrong domain — replace it with
-  // the correct storage base URL so images resolve properly.
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
-    return `${STORAGE_BASE_URL}${path}`
+    // Only replace domain if it's a local dev placeholder (vendora.test or localhost)
+    const isLocalPlaceholder = url.includes('vendora.test') || url.includes('localhost')
+    if (isLocalPlaceholder && STORAGE_BASE_URL) {
+      const path = url.replace(/^https?:\/\/[^/]+/, '')
+      return `${STORAGE_BASE_URL}${path}`
+    }
+    // URL already has the correct production domain — return as-is
+    return url
   }
+  // Relative path — prepend storage base URL if available
+  if (!STORAGE_BASE_URL) return url
   return `${STORAGE_BASE_URL}${url.startsWith('/') ? '' : '/storage/'}${url}`
 }
 
