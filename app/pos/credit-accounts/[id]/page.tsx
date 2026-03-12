@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use } from "react"
+import { useState, use, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -37,15 +37,22 @@ import {
     BookOpen,
     TrendingDown,
     TrendingUp,
+    ShoppingBag,
 } from "lucide-react"
 import { creditService } from "@/services"
 import type { ApiCredit } from "@/services"
 import Swal from "sweetalert2"
-import { useOfflineData } from "@/hooks/use-offline-data"
-import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 import { getOnlineStatus } from "@/lib/sync-service"
 
 // Types for UI display
+interface PurchasedItem {
+    id: number
+    name: string
+    quantity: number
+    unitPrice: number
+    total: number
+}
+
 interface CreditAccount {
     id: number
     customer: {
@@ -64,37 +71,8 @@ interface CreditAccount {
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
     notes?: string
-}
-
-// ---------------------------------------------------------------------------
-// Dummy data — fallback when API credits endpoint is unavailable
-// ---------------------------------------------------------------------------
-const DUMMY_CREDITS: Record<string, CreditAccount> = {
-    "1": {
-        id: 1,
-        customer: { id: 1, name: "Juan dela Cruz", phone: "09171234567", email: "juan@email.com", address: "123 Rizal St, Manila" },
-        totalAmount: 5000, paidAmount: 2000, remainingBalance: 3000,
-        status: "active", createdAt: "2026-02-01T08:00:00Z",
-    },
-    "2": {
-        id: 2,
-        customer: { id: 2, name: "Maria Santos", phone: "09281234567", email: "maria@email.com", address: "456 Mabini Ave, Quezon City" },
-        totalAmount: 8500, paidAmount: 8500, remainingBalance: 0,
-        status: "paid", createdAt: "2026-01-15T08:00:00Z",
-    },
-    "3": {
-        id: 3,
-        customer: { id: 3, name: "Pedro Reyes", phone: "09351234567", address: "789 Luna St, Cebu City" },
-        totalAmount: 12000, paidAmount: 3000, remainingBalance: 9000,
-        dueDate: "2026-03-01T00:00:00Z",
-        status: "overdue", createdAt: "2026-01-10T08:00:00Z",
-    },
-    "4": {
-        id: 4,
-        customer: { id: 4, name: "Ana Gomez", phone: "09461234567", email: "ana@email.com" },
-        totalAmount: 3500, paidAmount: 1000, remainingBalance: 2500,
-        status: "active", createdAt: "2026-02-20T08:00:00Z",
-    },
+    items: PurchasedItem[]
+    orderNumber?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -140,14 +118,47 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             ? c.status
             : "active"
 
+    const cc = c.credit_customer
+    const fullName = c.customer?.name?.trim()
+        ?? (cc ? [cc.first_name, cc.middle_name, cc.last_name].filter(Boolean).join(" ") : null)
+        ?? `Customer #${c.customer_id}`
+
+    const phone = c.customer?.phone ?? cc?.contact_number ?? undefined
+    const address = c.customer?.address ?? cc?.address ?? undefined
+
+    // Map order items if present
+    const items: PurchasedItem[] = (c.order?.items ?? []).map((item, idx) => {
+        const name = item.product_name ?? item.product?.name ?? `Product #${item.product_id ?? idx + 1}`
+
+        // Use product catalog price as the authoritative source (in PHP pesos).
+        // item.price may be stored in centavos by the backend, so prefer
+        // item.product.price (catalog price in pesos) when available.
+        const rawPrice =
+            item.product?.price ??
+            item.unit_price ??
+            item.sale_price ??
+            item.price ??
+            0
+        const unitPrice = Number(rawPrice) || 0
+
+        const qty = Number(item.quantity) || 1
+        return {
+            id: item.id,
+            name,
+            quantity: qty,
+            unitPrice,
+            total: Number(item.total) || unitPrice * qty,
+        }
+    })
+
     return {
         id: c.id,
         customer: {
             id: c.customer?.id ?? c.customer_id,
-            name: c.customer?.name ?? `Customer #${c.customer_id}`,
-            phone: c.customer?.phone ?? undefined,
+            name: fullName,
+            phone,
             email: c.customer?.email ?? undefined,
-            address: c.customer?.address ?? undefined,
+            address,
         },
         totalAmount: Number(c.amount) || 0,
         paidAmount: Number(c.paid_amount) || 0,
@@ -157,6 +168,8 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
         status,
         createdAt: c.created_at,
         notes: c.notes ?? undefined,
+        items,
+        orderNumber: c.order?.order_number ?? undefined,
     }
 }
 
@@ -172,12 +185,27 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
     const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'payments'>('overview')
 
-    const { data: rawAccount, isLoading, isStale, lastSyncedAt, error, refresh } = useOfflineData<any>(
-        `credit-account-${accountId}`,
-        () => creditService.getById(accountId),
-        { staleAfterMinutes: 5 }
-    )
-    const account = rawAccount ? mapApiCredit(rawAccount) : (DUMMY_CREDITS[accountId] ?? null)
+    const [rawAccount, setRawAccount] = useState<ApiCredit | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    const refresh = useCallback(async () => {
+        setIsLoading(true)
+        setError(null)
+        try {
+            const data = await creditService.getById(accountId)
+            setRawAccount(data)
+        } catch (err: unknown) {
+            const e = err as { message?: string }
+            setError(e?.message || "Failed to load credit account")
+        } finally {
+            setIsLoading(false)
+        }
+    }, [accountId])
+
+    useEffect(() => { refresh() }, [refresh])
+
+    const account = rawAccount ? mapApiCredit(rawAccount) : null
 
     const handleSubmitPayment = async () => {
         if (!account || !paymentAmount || !paymentMethod) return
@@ -271,7 +299,6 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
 
     return (
         <div className="space-y-4 pb-6">
-            <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
             {/* Compact Header */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
@@ -428,6 +455,46 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                                     <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Notes</span>
                                     <p className="text-sm text-gray-700 dark:text-[#e0e0f0] mt-1">{account.notes}</p>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Purchased Items */}
+                        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <ShoppingBag className="w-4 h-4 text-purple-500" />
+                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Purchased Items
+                                    {account.orderNumber && (
+                                        <span className="ml-2 text-xs font-normal text-gray-400 dark:text-[#9898b8]">
+                                            Order #{account.orderNumber}
+                                        </span>
+                                    )}
+                                </h3>
+                            </div>
+                            {account.items.length > 0 ? (
+                                <div className="space-y-0 divide-y divide-gray-50 dark:divide-[#2d1b69]">
+                                    {account.items.map((item) => (
+                                        <div key={item.id} className="flex items-center justify-between py-2.5 text-sm">
+                                            <div className="flex-1 min-w-0">
+                                                <span className="font-medium text-gray-900 dark:text-white truncate block">{item.name}</span>
+                                                <span className="text-xs text-gray-400 dark:text-[#9898b8]">
+                                                    {item.quantity} × ₱{item.unitPrice.toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <span className="font-semibold text-gray-900 dark:text-white ml-4">
+                                                ₱{item.total.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    <div className="flex items-center justify-between pt-2.5 text-sm font-bold">
+                                        <span className="text-gray-700 dark:text-[#e0e0f0]">Total</span>
+                                        <span className="text-purple-600">₱{account.totalAmount.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-400 dark:text-[#9898b8] text-center py-4">
+                                    Item details not available
+                                </p>
                             )}
                         </div>
                     </div>
