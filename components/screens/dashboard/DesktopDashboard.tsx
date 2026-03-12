@@ -213,7 +213,7 @@ export default function DesktopDashboard() {
       {/* Row 3: Actionable Items + Activity Feed */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         {/* Left: Alerts, Orders & Cash vs Credit */}
-        <div className="xl:col-span-7 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-9 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
             <CardContent className="p-5">
               <LowStockAlerts variant="embedded" />
@@ -230,7 +230,7 @@ export default function DesktopDashboard() {
         </div>
 
         {/* Right: Recent Activity + Quick Actions */}
-        <div className="xl:col-span-5">
+        <div className="xl:col-span-3">
           <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
             <CardContent className="p-5">
               <RecentActivity data={recentActivity} variant="embedded" />
