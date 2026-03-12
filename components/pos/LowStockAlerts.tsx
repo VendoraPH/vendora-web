@@ -75,7 +75,7 @@ export function LowStockAlerts({ variant = "default" }: LowStockAlertsProps) {
                     </p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="text-xs">
+                <Button size="sm" variant="outline" className="text-xs border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40">
                   Restock
                 </Button>
               </div>
