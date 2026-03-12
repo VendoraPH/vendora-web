@@ -671,7 +671,14 @@ const orders = {
           _lastModified: now,
           order_number: (o as any).order_number || (o as any).orderNumber,
           customer_id: (o as any).customer_id || (o as any).customer?.id,
-          customer_name: (o as any).customer?.name || (o as any).customer_name || 'Walk-in',
+          customer_name: (() => {
+            const cc = (o as any).credit_customer;
+            if (cc) {
+              const full = `${cc.first_name || ''} ${cc.last_name || ''}`.trim();
+              if (full) return full;
+            }
+            return (o as any).customer?.name || (o as any).customer_name || 'Walk-in';
+          })(),
           ordered_at: (o as any).ordered_at || (o as any).created_at,
           status: (o as any).status || 'pending',
           total: Number((o as any).total || 0),
@@ -775,6 +782,12 @@ const payments = {
           created_at: p.created_at,
           last_synced: now,
         });
+      }
+
+      // Clean up temp payments (created offline, now replaced by server records)
+      const tempPayments = await db.payments.where('id').below(0).toArray();
+      for (const temp of tempPayments) {
+        await db.payments.delete(temp.id);
       }
 
       // Clean up synced records no longer on server

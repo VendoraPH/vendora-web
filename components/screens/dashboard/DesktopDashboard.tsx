@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2 } from "lucide-react"
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useDashboardData } from "@/hooks/useDashboardData"
+import type { DateRangeParams } from "@/types/dashboard"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 
 /**
@@ -37,6 +38,25 @@ import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
  */
 export default function DesktopDashboard() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
+  const [period, setPeriod] = useState("7days")
+
+  // Compute date range from selected period
+  const dateParams = useMemo<DateRangeParams | undefined>(() => {
+    const today = new Date()
+    const formatDate = (d: Date) => d.toISOString().split("T")[0]
+    const end_date = formatDate(today)
+
+    switch (period) {
+      case "today":
+        return { start_date: end_date, end_date }
+      case "7days":
+        return { start_date: formatDate(new Date(today.getTime() - 6 * 86400000)), end_date }
+      case "30days":
+        return { start_date: formatDate(new Date(today.getTime() - 29 * 86400000)), end_date }
+      default:
+        return undefined
+    }
+  }, [period])
 
   // Fetch dashboard data from API (with offline cache support)
   const {
@@ -52,7 +72,7 @@ export default function DesktopDashboard() {
     error,
     isStale,
     lastSyncedAt,
-  } = useDashboardData()
+  } = useDashboardData(dateParams)
 
   // Transform KPI data to stats format
   const stats = kpis ? [
@@ -121,7 +141,7 @@ export default function DesktopDashboard() {
           <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-1">Bunya Retail Shop</h1>
         </div>
         <div className="hidden w-full flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
-          <Select defaultValue="7days">
+          <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-full sm:w-[140px]" suppressHydrationWarning>
               <SelectValue placeholder="Select period" />
             </SelectTrigger>
@@ -129,7 +149,6 @@ export default function DesktopDashboard() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="7days">Last 7 days</SelectItem>
               <SelectItem value="30days">Last 30 days</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
             </SelectContent>
           </Select>
           <Button asChild className="w-full sm:w-auto bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white">

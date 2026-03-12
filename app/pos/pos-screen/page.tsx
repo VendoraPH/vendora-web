@@ -288,11 +288,12 @@ export default function VendoraPOS() {
     try {
       // STEP 1: Load from IndexedDB FIRST (instant, works offline)
       console.log('📦 Loading cached data from IndexedDB...');
-      const [localProducts, localCategories, localCustomers, localStores] = await Promise.all([
+      const [localProducts, localCategories, localCustomers, localStores, localOrders] = await Promise.all([
         db.products.toArray().then(items => items.filter(p => p.is_active === true)),
         db.categories.toArray(),
         db.customers.toArray().then(items => items.filter(c => c.status === 'active')),
-        db.stores.toArray().then(items => items.filter(s => s.is_active === true))
+        db.stores.toArray().then(items => items.filter(s => s.is_active === true)),
+        db.orders.toArray(),
       ]);
 
       localProductsCount = localProducts.length;
@@ -325,7 +326,7 @@ export default function VendoraPOS() {
         console.log(`✅ Loaded ${localCategories.length} categories from cache`);
       }
 
-      if (localCustomers.length > 0) {
+      {
         const apiCustomers = localCustomers.map(c => ({
           id: c.id,
           name: c.name,
@@ -334,8 +335,36 @@ export default function VendoraPOS() {
           address: c.address,
           status: c.status
         })) as ApiCustomer[];
-        setCustomers(apiCustomers);
-        console.log(`✅ Loaded ${localCustomers.length} customers from cache`);
+
+        // Also pull unique customer names from order history (covers credit customers)
+        const orderCustomerMap = new Map<string, ApiCustomer>();
+        for (const o of localOrders) {
+          const name = o.customer_name?.trim();
+          if (name && name.toLowerCase() !== 'walk-in customer') {
+            const key = name.toLowerCase();
+            if (!orderCustomerMap.has(key)) {
+              orderCustomerMap.set(key, {
+                id: o.customer_id || 0,
+                name,
+                phone: undefined,
+                status: 'active',
+                created_at: '',
+                updated_at: '',
+              } as ApiCustomer);
+            }
+          }
+        }
+
+        // Merge: start with DB customers, then add any from orders not already present
+        const merged = [...apiCustomers];
+        for (const oc of orderCustomerMap.values()) {
+          if (!merged.find(c => c.name.toLowerCase() === oc.name.toLowerCase())) {
+            merged.push(oc);
+          }
+        }
+
+        setCustomers(merged);
+        console.log(`✅ Loaded ${merged.length} customers (${apiCustomers.length} from DB + ${merged.length - apiCustomers.length} from orders)`);
       }
 
       if (localStores.length > 0) {
@@ -647,6 +676,28 @@ export default function VendoraPOS() {
 
       if (isCredit && resolvedCreditName.trim() !== "") {
         customerName = resolvedCreditName.trim();
+        // Check if customer already exists; if not, auto-register them
+        const existingCustomer = customers.find(
+          c => c.name.toLowerCase() === resolvedCreditName.trim().toLowerCase()
+        );
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else if (syncService.getOnlineStatus()) {
+          try {
+            const newCustomer = await customerService.create({
+              name: resolvedCreditName.trim(),
+              phone: resolvedCreditPhone.trim() || undefined,
+              status: "active",
+            });
+            customerId = newCustomer.id;
+            console.log(`✅ Auto-registered new customer: ${newCustomer.name} (ID: ${newCustomer.id})`);
+          } catch (e) {
+            console.warn("Could not auto-register customer, using placeholder ID", e);
+            customerId = customerId || 1;
+          }
+        } else {
+          customerId = customerId || 1;
+        }
       }
 
       // Save transaction locally FIRST (offline-first approach)
@@ -938,13 +989,12 @@ export default function VendoraPOS() {
     cardPay, setCardPay, onlinePay, setOnlinePay, amountDue, paid, balance, change,
     canComplete, setReceiptOpen, calcDeliveryFee, completeOrder, categories,
     receiptData, startNewTransaction, creditorFirstName, setCreditorFirstName, creditorMiddleName, setCreditorMiddleName, creditorLastName, setCreditorLastName, creditorPhone, setCreditorPhone, creditorAddress, setCreditorAddress,
-    customers
+    customers,
   }), [screen, cart, query, barcodeInput, category, customer, notes, filtered, addToCart,
     applyBarcode, changeQty, removeItem, totals, discountAmount, canGoCheckout, discountMode,
     discountValue, taxEnabled, taxRate, fulfillment, deliveryKm, paymentType, splitPay,
     primaryMethod, cashPay, cardPay, onlinePay, amountDue, paid, balance, change,
-    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress,
-    customers]);
+    canComplete, completeOrder, categories, receiptData, startNewTransaction, creditorFirstName, creditorMiddleName, creditorLastName, creditorPhone, creditorAddress, customers]);
 
   // Show loading
   if (isLoading) {
@@ -1007,7 +1057,9 @@ export default function VendoraPOS() {
                 setOrderHistoryOpen(true);
                 try {
                   const orders = await orderService.getAll({});
-                  setRecentOrders(extractDataArray(orders));
+                  const list = extractDataArray(orders);
+                  list.sort((a: any, b: any) => new Date(b.created_at || b.ordered_at || 0).getTime() - new Date(a.created_at || a.ordered_at || 0).getTime());
+                  setRecentOrders(list);
                 } catch { /* Silent fail */ }
               }}
             >
@@ -1209,6 +1261,21 @@ function InlineSettingsDialog({ open, onOpenChange, taxEnabled, setTaxEnabled, t
 }
 
 function InlineOrderHistoryDialog({ open, onOpenChange, recentOrders }: any) {
+  const formatOrderDateTime = (order: any) => {
+    const raw = order.created_at || order.ordered_at;
+    if (!raw) return "—";
+    const date = new Date(raw);
+    if (isNaN(date.getTime())) return raw;
+    return date.toLocaleString("en-PH", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-2xl bg-white dark:bg-[#201836] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -1226,12 +1293,12 @@ function InlineOrderHistoryDialog({ open, onOpenChange, recentOrders }: any) {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="font-medium">{order.order_number || `ORD-${order.id}`}</div>
-                      <div className="text-sm text-gray-600 dark:text-white/60">{order.customer || "Walk-in"}</div>
-                      <div className="text-xs text-gray-600 dark:text-white/60">{order.ordered_at}</div>
+                      <div className="text-sm text-gray-600 dark:text-white/60">{order.customer?.name || order.customer || "Walk-in"}</div>
+                      <div className="text-xs text-gray-600 dark:text-white/60">{formatOrderDateTime(order)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₱ {((order.total || 0) / 100).toLocaleString()}</div>
-                      <div className="text-xs text-gray-600 dark:text-white/60">{order.status}</div>
+                      <div className="font-semibold">₱{(order.total || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-xs text-gray-600 dark:text-white/60 capitalize">{order.status}</div>
                     </div>
                   </div>
                 </div>

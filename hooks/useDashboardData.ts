@@ -100,6 +100,7 @@ export function useDashboardData(dateParams?: DateRangeParams) {
                     model_type: "Order",
                     model_id: Number(order.id) || 0,
                     message: `Processed order #${order.orderNumber || order.id} for ₱${Number(order.total || 0).toLocaleString()}`,
+                    user_name: null,
                     created_at: new Date(order.createdAt || new Date()).toISOString()
                 }))
 

@@ -193,7 +193,7 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
 
   try {
     // Create order on server
-    const isCredit = transaction.is_credit === true || transaction.status === 'pending';
+    const isCredit = transaction.is_credit === true;
 
     const orderPayload: Record<string, any> = {
       customer_id: transaction.customer_id,

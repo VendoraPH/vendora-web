@@ -186,17 +186,26 @@ const getErrorMessage = (error: unknown): { message: string; isAuthError: boolea
 const STORAGE_BASE_URL = (API_CONFIG.BASE_URL || '').replace(/\/api\/?$/, '')
 
 /**
- * Resolve image URL — handles relative paths from API storage
+ * Resolve image URL — handles relative paths and Laravel local dev placeholder domain.
+ * The API may return images with `vendora.test` or `localhost` domain (local dev APP_URL).
+ * We replace those with the correct production storage base URL.
+ * If the URL already has a real domain, return it as-is.
  */
 const resolveImageUrl = (url: string | null | undefined): string | null => {
   if (!url) return null
-  if (url.startsWith('blob:')) return url
-  // The backend APP_URL may be set to an old/wrong domain — replace it with
-  // the correct storage base URL so images resolve properly.
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
-    return `${STORAGE_BASE_URL}${path}`
+    // Only replace domain if it's a local dev placeholder (vendora.test or localhost)
+    const isLocalPlaceholder = url.includes('vendora.test') || url.includes('localhost')
+    if (isLocalPlaceholder && STORAGE_BASE_URL) {
+      const path = url.replace(/^https?:\/\/[^/]+/, '')
+      return `${STORAGE_BASE_URL}${path}`
+    }
+    // URL already has the correct production domain — return as-is
+    return url
   }
+  // Relative path — prepend storage base URL if available
+  if (!STORAGE_BASE_URL) return url
   return `${STORAGE_BASE_URL}${url.startsWith('/') ? '' : '/storage/'}${url}`
 }
 
@@ -267,7 +276,6 @@ function DesktopInventoryLayout() {
   const [isBulkPricing, setIsBulkPricing] = useState(false)
   const [markupType, setMarkupType] = useState<'percentage' | 'fixed'>('percentage')
   const [markupValue, setMarkupValue] = useState<number>(0)
-  const [isPriceManuallySet, setIsPriceManuallySet] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null)
   const [formData, setFormData] = useState<ProductForm>(initialFormState)
@@ -349,7 +357,6 @@ function DesktopInventoryLayout() {
     setIsBulkPricing(false)
     setMarkupType('percentage')
     setMarkupValue(0)
-    setIsPriceManuallySet(false)
     setImagePreview(null)
     setImageFile(null)
     setImageName("")
@@ -465,9 +472,8 @@ function DesktopInventoryLayout() {
     }
   }, [imagePreview])
 
-  // Auto-calculate selling price from cost + markup (skipped if price was manually set)
+  // Auto-calculate selling price from cost + markup
   useEffect(() => {
-    if (isPriceManuallySet) return
     const purchaseCost = formData.cost
     if (purchaseCost > 0 && markupValue >= 0) {
       let sellingPrice: number
@@ -480,21 +486,7 @@ function DesktopInventoryLayout() {
     } else if (purchaseCost <= 0) {
       setFormData(prev => ({ ...prev, price: 0 }))
     }
-  }, [formData.cost, markupType, markupValue, isPriceManuallySet])
-
-  // When selling price is manually edited, back-calculate markup
-  const handleSellingPriceChange = (value: number) => {
-    setIsPriceManuallySet(true)
-    setFormData(prev => ({ ...prev, price: value }))
-    const cost = formData.cost
-    if (cost > 0 && value > 0) {
-      if (markupType === 'percentage') {
-        setMarkupValue(Math.round(((value - cost) / cost) * 100 * 100) / 100)
-      } else {
-        setMarkupValue(Math.round((value - cost) * 100) / 100)
-      }
-    }
-  }
+  }, [formData.cost, markupType, markupValue])
 
   useEffect(() => {
     let active = true
@@ -609,7 +601,6 @@ function DesktopInventoryLayout() {
     const existingCost = product.cost || 0
     const existingPrice = product.price || 0
     setMarkupType('percentage')
-    setIsPriceManuallySet(false)
     if (existingCost > 0 && existingPrice > existingCost) {
       setMarkupValue(Math.round(((existingPrice - existingCost) / existingCost) * 100 * 100) / 100)
     } else {
@@ -1641,10 +1632,7 @@ function DesktopInventoryLayout() {
                           min="0"
                           step="0.01"
                           value={formData.cost || ""}
-                          onChange={(e) => {
-                            setIsPriceManuallySet(false)
-                            handleInputChange("cost", Number(e.target.value))
-                          }}
+                          onChange={(e) => handleInputChange("cost", Number(e.target.value))}
                         />
                       </div>
                     </div>
@@ -1659,7 +1647,7 @@ function DesktopInventoryLayout() {
                     {/* Markup */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/70">Mark Up</p>
+                        <p className="text-xs text-white/70">Mark Up{markupType === 'percentage' ? ' (%)' : ''} *</p>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
@@ -1668,7 +1656,7 @@ function DesktopInventoryLayout() {
                                 ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
                                 : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
                             }`}
-                            onClick={() => { setMarkupType('percentage'); setIsPriceManuallySet(false) }}
+                            onClick={() => setMarkupType('percentage')}
                           >
                             %
                           </button>
@@ -1679,7 +1667,7 @@ function DesktopInventoryLayout() {
                                 ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
                                 : 'bg-white/5 text-white/40 border border-transparent hover:bg-white/10 hover:text-white/60'
                             }`}
-                            onClick={() => { setMarkupType('fixed'); setIsPriceManuallySet(false) }}
+                            onClick={() => setMarkupType('fixed')}
                           >
                             Fixed
                           </button>
@@ -1696,7 +1684,7 @@ function DesktopInventoryLayout() {
                           min="0"
                           step={markupType === 'percentage' ? "1" : "0.01"}
                           value={markupValue || ""}
-                          onChange={(e) => { setIsPriceManuallySet(false); setMarkupValue(Number(e.target.value)) }}
+                          onChange={(e) => setMarkupValue(Number(e.target.value))}
                         />
                       </div>
                     </div>
@@ -1708,42 +1696,19 @@ function DesktopInventoryLayout() {
                       <div className="flex-1 border-t border-dashed border-white/10" />
                     </div>
 
-                    {/* Selling Price */}
+                    {/* Selling Price (auto-calculated, read-only) */}
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/70">Selling Price *</p>
-                        {isPriceManuallySet && (
-                          <button
-                            type="button"
-                            className="text-[10px] text-purple-300/70 hover:text-purple-200 transition"
-                            onClick={() => setIsPriceManuallySet(false)}
-                          >
-                            Reset to auto
-                          </button>
-                        )}
-                      </div>
-                      <div className={`flex items-center gap-2 rounded-xl border px-3 transition ${
-                        isPriceManuallySet
-                          ? 'bg-white/10 border-white/10'
-                          : 'bg-emerald-500/10 border-emerald-500/20'
-                      }`}>
-                        <span className={`h-4 w-4 font-bold text-sm flex items-center justify-center ${
-                          isPriceManuallySet ? 'text-white/50' : 'text-emerald-400/70'
-                        }`}>₱</span>
+                      <p className="text-xs text-white/70">Selling Price</p>
+                      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3">
+                        <span className="h-4 w-4 text-emerald-400/70 font-bold text-sm flex items-center justify-center">₱</span>
                         <Input
-                          className={`border-0 bg-transparent font-medium focus-visible:ring-0 focus-visible:ring-offset-0 ${
-                            isPriceManuallySet
-                              ? 'text-white placeholder:text-white/40'
-                              : 'text-emerald-300 placeholder:text-emerald-400/30'
-                          }`}
-                          placeholder="0.00"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.price > 0 ? formData.price : ""}
-                          onChange={(e) => handleSellingPriceChange(Number(e.target.value))}
+                          className="border-0 bg-transparent text-emerald-300 font-medium placeholder:text-emerald-400/30 focus-visible:ring-0 focus-visible:ring-offset-0"
+                          placeholder="Auto-calculated"
+                          value={formData.price > 0 ? formData.price.toFixed(2) : ""}
+                          readOnly
+                          tabIndex={-1}
                         />
-                        {!isPriceManuallySet && <Lock className="h-3 w-3 text-emerald-400/40 shrink-0" />}
+                        <Lock className="h-3 w-3 text-emerald-400/40 shrink-0" />
                       </div>
                     </div>
 

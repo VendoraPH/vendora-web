@@ -126,7 +126,7 @@ export function CashVsCreditChart({ data, className }: Props) {
                   ₱ {item.amount.toLocaleString()}
                 </span>
                 <span className="text-[10px] text-gray-400 dark:text-[#9898b8]">
-                  {item.count} {item.count === 1 ? "txn" : "txns"}
+                  {item.count} {item.count === 1 ? "transaction" : "transactions"}
                 </span>
               </div>
             ))}

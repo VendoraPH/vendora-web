@@ -75,7 +75,7 @@ const sidebarSections = [
     title: "Management",
     items: [
       { icon: Calculator, label: "Accounting", href: "/pos/accounting", comingSoon: true, disabled: true },
-      { icon: BookOpen, label: "Ledger", href: "/pos/ledger", comingSoon: false, disabled: true },
+      { icon: BookOpen, label: "Ledger", href: "/pos/ledger", comingSoon: true, disabled: true },
       { icon: Settings, label: "Settings", href: "/pos/settings", comingSoon: true, disabled: true },
       { icon: HelpCircle, label: "Help and Support", href: "/pos/help", comingSoon: true, disabled: true },
     ]

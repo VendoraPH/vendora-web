@@ -122,14 +122,8 @@ export default function EcommercePage() {
           <p className="text-sm sm:text-base text-gray-600 dark:text-[#b4b4d0] mt-0.5 sm:mt-1">Manage your online store and web presence</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1 sm:flex-none" asChild>
-            <a href="/ecommerce/products" target="_blank">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview
-            </a>
-          </Button>
           <Button className="bg-purple-600 hover:bg-purple-700 flex-1 sm:flex-none" asChild>
-            <a href="/ecommerce/products" target="_blank">
+            <a href="/ecommerce/rbtesa/products" target="_blank">
               <ExternalLink className="w-4 h-4 mr-2" />
               Visit Store
             </a>

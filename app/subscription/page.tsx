@@ -10,44 +10,48 @@ import { formatPHP } from "@/lib/currency"
 const plans = [
   {
     id: "free",
-    name: "Free",
+    name: "1-Month Free Trial",
     price: 0,
     period: "month",
-    description: "Perfect for trying out the platform",
+    description: "No credit card required",
     features: [
-      "Up to 10 products",
-      "1 POS terminal",
-      "Basic reporting",
-      "Email support",
-      "7-day data retention",
+      "Full access to all POS features",
+      "Product and inventory management",
+      "Sales tracking with basic reports",
+      "Analytics dashboard preview",
+      "E-commerce store setup included",
+      "Customer and transaction management",
+      "No payment required during the trial",
+      "Option to upgrade anytime to continue",
     ],
     highlighted: false,
+    hidden: false,
   },
-
   {
-    id: "pro",
-    name: "Professional",
-    price: 2499,
+    id: "business",
+    name: "Business",
+    price: 250,
     period: "month",
-    description: "Ideal for growing businesses",
+    description: "For serious vendors",
     features: [
-      "Unlimited products",
-      "Up to 5 POS terminals",
-      "Advanced analytics",
-      "Priority support",
-      "Inventory management",
-      "Online store",
-      "Multiple users",
-      "Customer loyalty program",
-      "Barcode scanning",
+      "Full POS system with uninterrupted access",
+      "Integrated e-commerce website for your store",
+      "Complete inventory and stock tracking",
+      "Detailed sales reports and analytics",
+      "Customer management and sales history",
+      "Credit management and ledger tracking",
+      "Secure cloud storage for business data",
+      "Continuous updates with priority support",
     ],
     highlighted: true,
+    hidden: true,
   },
-
 ]
 
 export default function SubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
+  const visiblePlans = plans.filter((p) => !p.hidden)
+  const showBillingToggle = visiblePlans.some((p) => p.price > 0)
 
   const getPrice = (monthlyPrice: number) => {
     if (billingCycle === "annual") {
@@ -66,40 +70,46 @@ export default function SubscriptionPage() {
             Choose Your Plan
           </h1>
           <p className="text-muted-foreground text-sm sm:text-base md:text-lg mb-6 sm:mb-8 max-w-2xl mx-auto">
-            Select the perfect plan for your business needs. All plans include a 14-day free trial.
+            Start free for 1 month — no credit card required. Upgrade anytime.
           </p>
 
           {/* Billing Cycle Toggle */}
-          <div className="inline-flex items-center gap-2 p-1 bg-muted rounded-lg shadow-sm">
-            <button
-              onClick={() => setBillingCycle("monthly")}
-              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                billingCycle === "monthly"
-                  ? "bg-background shadow-md text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle("annual")}
-              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-2 ${
-                billingCycle === "annual"
-                  ? "bg-background shadow-md text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Annual
-              <Badge variant="secondary" className="px-2 py-0.5 text-xs">
-                Save 20%
-              </Badge>
-            </button>
-          </div>
+          {showBillingToggle && (
+            <div className="inline-flex items-center gap-2 p-1 bg-muted rounded-lg shadow-sm">
+              <button
+                onClick={() => setBillingCycle("monthly")}
+                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                  billingCycle === "monthly"
+                    ? "bg-background shadow-md text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle("annual")}
+                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-2 ${
+                  billingCycle === "annual"
+                    ? "bg-background shadow-md text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Annual
+                <Badge variant="secondary" className="px-2 py-0.5 text-xs">
+                  Save 20%
+                </Badge>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-12 sm:mb-16">
-          {plans.map((plan) => (
+        <div className={`grid gap-4 sm:gap-6 md:gap-8 mb-12 sm:mb-16 ${
+          visiblePlans.length === 1
+            ? "grid-cols-1 max-w-md mx-auto"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2"
+        }`}>
+          {visiblePlans.map((plan) => (
             <div
               key={plan.id}
               className={`relative rounded-xl border bg-card text-card-foreground shadow-sm p-6 sm:p-8 flex flex-col transition-all duration-300 ${
@@ -173,7 +183,7 @@ export default function SubscriptionPage() {
         {/* Additional Info */}
         <div className="text-center mb-12 sm:mb-16 px-4">
           <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-            No credit card required for trial. Cancel anytime.
+            No credit card required. Cancel anytime.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-8 text-xs sm:text-sm">
             <Link href="/login" className="text-primary hover:underline font-medium">

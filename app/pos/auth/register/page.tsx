@@ -13,6 +13,7 @@ import { Card, CardFooter, CardHeader, CardTitle, CardDescription } from "@/comp
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Building2, Mail, Lock, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
 import { SubscriptionPlanSelector } from "@/components/auth/subscription-plan-selector"
+import { authService } from "@/services/auth-jwt.service"
 
 const registerSchema = z.object({
   business_name: z.string().min(2, "Business name must be at least 2 characters"),
@@ -74,33 +75,33 @@ export default function VendorRegisterPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/vendor-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.business_name,
-          business_name: data.business_name,
-          email: data.email,
-          password: data.password,
-          password_confirmation: data.password_confirmation,
-          subscription_plan: selectedPlan,
-          user_type: "vendor",
-        }),
+      const response = await authService.pos.register({
+        name: data.business_name,
+        business_name: data.business_name,
+        email: data.email,
+        password: data.password,
+        password_confirmation: data.password_confirmation,
+        subscription_plan: selectedPlan,
+        user_type: "vendor",
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || "Registration failed")
+      if (response.success) {
+        setSuccess(true)
+        setTimeout(() => {
+          router.push("/pos/auth/login")
+        }, 3000)
+      } else {
+        setError(response.message ?? "Registration failed. Please try again.")
       }
-
-      setSuccess(true)
-      setTimeout(() => {
-        router.push("/pos/dashboard")
-      }, 2000)
-    } catch (err) {
-      const errorMessage = (err as Error)?.message || "An error occurred during registration"
-      setError(errorMessage)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } }; message?: string }
+      const validationErrors = error.response?.data?.errors
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)[0]
+        setError(Array.isArray(firstError) ? (firstError[0] ?? "Validation error") : String(firstError))
+      } else {
+        setError(error.response?.data?.message || error.message || "An error occurred during registration")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -118,15 +119,15 @@ export default function VendorRegisterPage() {
             </div>
             <CardTitle className="text-2xl font-bold text-center">Registration Successful!</CardTitle>
             <CardDescription className="text-center">
-              Your vendor account has been created successfully. We're setting up your store and subdomain. You'll receive a confirmation email shortly.
+              Your vendor account has been created. You can now sign in with your credentials.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col space-y-4">
             <p className="text-sm text-center text-gray-600">
-              Redirecting to dashboard...
+              Redirecting to login...
             </p>
-            <Button onClick={() => router.push("/pos/dashboard")} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-              Go to Dashboard
+            <Button onClick={() => router.push("/pos/auth/login")} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+              Go to Login
             </Button>
           </CardFooter>
         </Card>

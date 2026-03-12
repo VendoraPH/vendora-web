@@ -659,7 +659,7 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                     {/* Markup */}
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-xs text-white/70">Mark Up *</p>
+                                            <p className="text-xs text-white/70">Mark Up{markupType === 'percentage' ? ' (%)' : ''} *</p>
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     type="button"
