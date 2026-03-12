@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ import {
   FileText,
 } from "lucide-react";
 import { type POSScreenProps } from "./types";
+import { customerService } from "@/services";
 
 const THEME = {
   bg: "bg-gray-50 dark:bg-gradient-to-br dark:from-[#1f1633] dark:via-[#241a3a] dark:to-[#2b1f4a]",
@@ -138,6 +139,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
     setCreditorPhone: _setCreditorPhone = () => { },
     creditorAddress: _creditorAddress = "",
     setCreditorAddress: _setCreditorAddress = () => { },
+    customers = [] as NonNullable<POSScreenProps["customers"]>,
   } = props || {};
 
   const [activeDiscountPreset, setActiveDiscountPreset] = useState<string>("None");
@@ -148,7 +150,71 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
   const [localCreditorPhone, setLocalCreditorPhone] = useState("");
   const [localCreditorAddress, setLocalCreditorAddress] = useState("");
   const [localCreditorDueDate, setLocalCreditorDueDate] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [searchResults, setSearchResults] = useState<{ id: number; name: string; phone?: string | null; address?: string | null }[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const customerSearchRef = useRef<HTMLDivElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  // Parse a combined full name into first / middle / last parts
+  function parseFullName(fullName: string) {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { first: "", middle: "", last: "" };
+    if (parts.length === 1) return { first: parts[0] ?? "", middle: "", last: "" };
+    if (parts.length === 2) return { first: parts[0] ?? "", middle: "", last: parts[1] ?? "" };
+    return { first: parts[0] ?? "", middle: parts.slice(1, -1).join(" "), last: parts[parts.length - 1] ?? "" };
+  }
+
+  // Search customers — local first, then API fallback
+  const searchCustomers = useCallback(async (query: string) => {
+    if (!query.trim()) { setSearchResults([]); return; }
+
+    // Always search local cache first (instant)
+    const localMatches = customers
+      .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 8);
+    setSearchResults(localMatches);
+
+    // Then hit the API to catch customers not in local cache
+    try {
+      setIsSearching(true);
+      const response = await customerService.getAll({ search: query, per_page: 10 });
+      const apiResults = Array.isArray(response) ? response : (response as any)?.data ?? [];
+      // Merge: keep local matches + any new ones from API not already listed
+      const localIds = new Set(localMatches.map((c) => c.id));
+      const merged = [
+        ...localMatches,
+        ...apiResults.filter((c: { id: number }) => !localIds.has(c.id)),
+      ].slice(0, 8);
+      setSearchResults(merged);
+    } catch {
+      // API failed — local results already shown, that's fine
+    } finally {
+      setIsSearching(false);
+    }
+  }, [customers]);
+
+  // Debounce the search so we don't spam the API on every keystroke
+  const handleCustomerSearchChange = (value: string) => {
+    setCustomerSearch(value);
+    setShowCustomerDropdown(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!value.trim()) { setSearchResults([]); return; }
+    searchDebounceRef.current = setTimeout(() => searchCustomers(value), 300);
+  };
+
+  // Close customer dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(e.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Auto-focus barcode input when on sale screen
   useEffect(() => {
@@ -1077,7 +1143,7 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
       )}
 
       {/* Credit Info Dialog */}
-      <Dialog open={isCreditDialogOpen} onOpenChange={(v) => { setIsCreditDialogOpen(v); if (!v) { setLocalFirstName(""); setLocalMiddleName(""); setLocalLastName(""); setLocalCreditorPhone(""); setLocalCreditorAddress(""); setLocalCreditorDueDate(""); } }}>
+      <Dialog open={isCreditDialogOpen} onOpenChange={(v) => { setIsCreditDialogOpen(v); if (!v) { setLocalFirstName(""); setLocalMiddleName(""); setLocalLastName(""); setLocalCreditorPhone(""); setLocalCreditorAddress(""); setLocalCreditorDueDate(""); setCustomerSearch(""); setSearchResults([]); setShowCustomerDropdown(false); } }}>
         <DialogContent className="sm:max-w-[420px] bg-white dark:bg-[#1e1340] border-gray-200 dark:border-white/10 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
@@ -1087,6 +1153,59 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
             <p className={`text-sm ${THEME.muted} pt-1`}>Fill in the customer&apos;s details to complete this credit transaction.</p>
           </DialogHeader>
           <div className="grid gap-3 py-2">
+            {/* Customer search — auto-fill from existing customers */}
+            <div ref={customerSearchRef} className="relative grid gap-1.5">
+              <Label className="text-gray-700 dark:text-white/80 text-sm flex items-center gap-1">
+                <Search className="h-3.5 w-3.5" /> Search Existing Customer
+              </Label>
+              <div className="relative">
+                <Input
+                  placeholder="Type a name to search..."
+                  value={customerSearch}
+                  onChange={(e) => handleCustomerSearchChange(e.target.value)}
+                  onFocus={() => { if (customerSearch.trim()) setShowCustomerDropdown(true); }}
+                  className="rounded-xl bg-gray-50 border-gray-200 dark:bg-white/10 dark:border-white/10 dark:text-white pr-8"
+                />
+                {isSearching && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-purple-500 animate-pulse">...</span>
+                )}
+              </div>
+              {showCustomerDropdown && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e1340] shadow-lg overflow-hidden">
+                  {searchResults.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2.5 hover:bg-purple-50 dark:hover:bg-white/10 flex items-center justify-between gap-2 border-b border-gray-100 dark:border-white/5 last:border-0"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        const parsed = parseFullName(c.name);
+                        setLocalFirstName(parsed.first);
+                        setLocalMiddleName(parsed.middle);
+                        setLocalLastName(parsed.last);
+                        setLocalCreditorPhone(c.phone ?? "");
+                        setLocalCreditorAddress(c.address ?? "");
+                        setCustomerSearch(c.name);
+                        setShowCustomerDropdown(false);
+                      }}
+                    >
+                      <span className="text-sm text-gray-900 dark:text-white font-medium">{c.name}</span>
+                      {c.phone && <span className={`text-xs ${THEME.muted} shrink-0`}>{c.phone}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showCustomerDropdown && customerSearch.trim().length > 0 && searchResults.length === 0 && !isSearching && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e1340] shadow-lg px-3 py-2.5 text-sm text-gray-500 dark:text-white/50">
+                  No existing customer found — fill in details below.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 -my-1">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
+              <span className={`text-xs ${THEME.muted}`}>or fill in manually</span>
+              <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="cd-firstname" className="text-gray-700 dark:text-white/80 text-sm">First Name <span className="text-red-500">*</span></Label>

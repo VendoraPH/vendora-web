@@ -15,6 +15,33 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
 
+## Pre-Push Checklist (REQUIRED Before Every Push)
+
+> **🚨 MANDATORY**: Every change MUST pass both checks before pushing to any branch or creating a PR. No exceptions.
+
+### Step 1 — TypeScript Check
+```bash
+npx tsc --noEmit
+```
+- Must return **zero errors** before proceeding
+- Fix all type errors: unused variables, undeclared identifiers, type mismatches
+- Common issues to watch: unused imports, orphaned state variables, missing props
+
+### Step 2 — Production Build
+```bash
+npm run build
+```
+- Must compile **successfully** with no errors
+- A passing TypeScript check does not guarantee a passing build — always run both
+- Fix any build errors before pushing
+
+### Rules
+- **Never push code that fails TypeScript check** — it will cause CI/CD failures
+- **Never push code that fails `npm run build`** — it will break production
+- If a build fails after conflict resolution, check for orphaned code (unused states, removed UI that still has helper functions)
+- Run checks on the **feature branch**, not on `development`
+- Never push directly to `development` or `main`
+
 ## Architecture
 
 ### Route Structure

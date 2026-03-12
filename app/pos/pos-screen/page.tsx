@@ -332,6 +332,7 @@ export default function VendoraPOS() {
           name: c.name,
           email: c.email,
           phone: c.phone,
+          address: c.address,
           status: c.status
         })) as ApiCustomer[];
 
