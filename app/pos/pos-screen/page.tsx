@@ -1059,7 +1059,8 @@ export default function VendoraPOS() {
                   const orders = await orderService.getAll({});
                   const list = extractDataArray(orders);
                   list.sort((a: any, b: any) => new Date(b.created_at || b.ordered_at || 0).getTime() - new Date(a.created_at || a.ordered_at || 0).getTime());
-                  setRecentOrders(list);
+                  // API returns total in centavos — convert to pesos for display
+                  setRecentOrders(list.map((o: any) => ({ ...o, total: Number(o.total ?? 0) / 100 })));
                 } catch { /* Silent fail */ }
               }}
             >
