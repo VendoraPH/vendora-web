@@ -436,6 +436,13 @@ export const storeEndpoints = {
   // PATCH/DELETE /stores/:storeId/staff/:userId
   staffMember: (storeId: string | number, userId: string | number) =>
     buildUrl("/stores/:storeId/staff/:userId", { storeId, userId }),
+
+  // Public ecommerce endpoints (no auth required)
+  // GET /ecommerce/stores/:code
+  publicByCode: (code: string) => `/ecommerce/stores/${code}`,
+
+  // GET /ecommerce/stores/:code/products
+  publicProducts: (code: string) => `/ecommerce/stores/${code}/products`,
 }
 
 /**
