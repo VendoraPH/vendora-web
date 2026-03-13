@@ -13,12 +13,14 @@ import { endpoints } from "@/lib/api-endpoints"
 export interface ApiPayment {
     id: number
     payment_number: string
-    order_id: number
+    order_id: number | null
+    order_number?: string | null
+    customer_id: number | null
     customer: string
     paid_at: string
     amount: number
     currency: string
-    method: "cash" | "card" | "online"
+    method: "cash" | "card" | "online" | "credit"
     status: "pending" | "completed" | "failed" | "refunded"
     created_at?: string
     updated_at?: string
@@ -42,7 +44,7 @@ export interface PaymentPayload {
 export interface PaymentFilters {
     search?: string
     status?: string
-    method?: "cash" | "card" | "online"
+    method?: "cash" | "card" | "online" | "credit"
     page?: number
     per_page?: number
 }
@@ -55,6 +57,8 @@ export interface PaymentSummary {
     cash_payments: number
     card_payments: number
     online_payments: number
+    credit_payments: number
+    outstanding_credit: number
 }
 
 /**

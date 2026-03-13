@@ -15,6 +15,7 @@ import {
   AlertCircle,
   CloudOff,
   Clock,
+  Wallet,
 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useLocalPayments } from "@/hooks/use-local-data"
@@ -24,7 +25,7 @@ import { getOnlineStatus } from "@/lib/sync-service"
 
 // ==================== Helpers ====================
 
-/** API amounts are stored in cents — convert to pesos for display */
+/** Amounts stored in cents — convert to pesos for display */
 const formatCurrency = (amountCents: number) =>
   `₱${((amountCents ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -46,6 +47,9 @@ const capitalizeMethod = (method: string) => {
   if (!method) return "—"
   return method.charAt(0).toUpperCase() + method.slice(1).toLowerCase()
 }
+
+/** Credit repayment = payment with no order (order_id is null) */
+const isCreditRepayment = (payment: LocalPayment) => !payment.order_id
 
 // ==================== Status Badges ====================
 
@@ -81,6 +85,21 @@ function PaymentStatusBadge({ status }: { status: string }) {
   )
 }
 
+function PaymentTypeBadge({ payment }: { payment: LocalPayment }) {
+  if (isCreditRepayment(payment)) {
+    return (
+      <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 text-xs">
+        Credit Repayment
+      </Badge>
+    )
+  }
+  return (
+    <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
+      POS
+    </Badge>
+  )
+}
+
 function SyncStatusIndicator({ payment }: { payment: LocalPayment }) {
   if (payment._syncError) {
     return (
@@ -103,6 +122,23 @@ function SyncStatusIndicator({ payment }: { payment: LocalPayment }) {
   )
 }
 
+// ==================== Reference Display ====================
+
+function PaymentReference({ payment }: { payment: LocalPayment }) {
+  if (isCreditRepayment(payment)) {
+    return (
+      <span className="text-sm text-amber-600 dark:text-amber-400">
+        Credit Repayment
+      </span>
+    )
+  }
+  return (
+    <span className="text-sm text-gray-900 dark:text-white">
+      {payment.order_number || `ORD-${payment.order_id}`}
+    </span>
+  )
+}
+
 // ==================== Stats Computation ====================
 
 function computeStats(payments: LocalPayment[]) {
@@ -110,34 +146,46 @@ function computeStats(payments: LocalPayment[]) {
   let cashTotal = 0
   let cardTotal = 0
   let onlineTotal = 0
+  let creditPending = 0
 
   for (const p of payments) {
     const amt = p.amount ?? 0
-    totalRevenue += amt
-
     const method = (p.method ?? "").toLowerCase()
+
+    if (p.status === "completed") {
+      totalRevenue += amt
+    }
+
     if (method === "cash") cashTotal += amt
     else if (method === "card") cardTotal += amt
     else if (method === "online") onlineTotal += amt
+    else if (method === "credit" && p.status === "pending") creditPending += amt
   }
 
-  return { totalRevenue, cashTotal, cardTotal, onlineTotal }
+  return { totalRevenue, cashTotal, cardTotal, onlineTotal, creditPending }
 }
 
 // ==================== Main Page ====================
+
+type TypeFilter = "" | "pos" | "credit_repayment"
 
 export default function PaymentsPage() {
   const searchParams = useSearchParams()
   const { data: payments, isLoading, dirtyCount } = useLocalPayments()
   const [searchQuery, setSearchQuery] = useState("")
   const [methodFilter, setMethodFilter] = useState<string>("")
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("")
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Read method filter from URL params on mount
+  // Read filters from URL params on mount
   useEffect(() => {
     const method = searchParams.get("method")
     if (method) {
       setMethodFilter(method.toLowerCase())
+    }
+    const type = searchParams.get("type")
+    if (type === "pos" || type === "credit_repayment") {
+      setTypeFilter(type)
     }
   }, [searchParams])
 
@@ -163,9 +211,15 @@ export default function PaymentsPage() {
     })
   }, [payments])
 
-  // Filter by search and method
+  // Filter by type, search, and method
   const filteredPayments = useMemo(() => {
     let result = sortedPayments
+
+    if (typeFilter === "pos") {
+      result = result.filter((p) => !isCreditRepayment(p))
+    } else if (typeFilter === "credit_repayment") {
+      result = result.filter((p) => isCreditRepayment(p))
+    }
 
     if (methodFilter) {
       result = result.filter(
@@ -178,6 +232,7 @@ export default function PaymentsPage() {
       result = result.filter(
         (p) =>
           (p.payment_number ?? "").toLowerCase().includes(q) ||
+          (p.order_number ?? "").toLowerCase().includes(q) ||
           String(p.order_id ?? "").includes(q) ||
           (p.customer_name ?? "").toLowerCase().includes(q) ||
           (p.method ?? "").toLowerCase().includes(q)
@@ -185,7 +240,7 @@ export default function PaymentsPage() {
     }
 
     return result
-  }, [sortedPayments, searchQuery, methodFilter])
+  }, [sortedPayments, searchQuery, methodFilter, typeFilter])
 
   // Compute stats from all local data (not filtered)
   const stats = useMemo(() => computeStats(payments), [payments])
@@ -197,7 +252,7 @@ export default function PaymentsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Payments</h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-[#b4b4d0] mt-0.5 sm:mt-1">
-            Track and manage payment transactions
+            Track and manage all payment transactions
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -237,7 +292,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
         <div className="bg-white dark:bg-[#13132a] p-3 sm:p-4 md:p-6 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -255,7 +310,7 @@ export default function PaymentsPage() {
         <div className="bg-white dark:bg-[#13132a] p-3 sm:p-4 md:p-6 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Cash Payments</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Cash</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
                 {formatCurrency(stats.cashTotal)}
               </p>
@@ -269,7 +324,7 @@ export default function PaymentsPage() {
         <div className="bg-white dark:bg-[#13132a] p-3 sm:p-4 md:p-6 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Card Payments</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Card</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
                 {formatCurrency(stats.cardTotal)}
               </p>
@@ -283,7 +338,7 @@ export default function PaymentsPage() {
         <div className="bg-white dark:bg-[#13132a] p-3 sm:p-4 md:p-6 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Online Payments</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Online</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
                 {formatCurrency(stats.onlineTotal)}
               </p>
@@ -293,14 +348,54 @@ export default function PaymentsPage() {
             </div>
           </div>
         </div>
+
+        <div className="bg-white dark:bg-[#13132a] p-3 sm:p-4 md:p-6 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Credit (Pending)</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
+                {formatCurrency(stats.creditPending)}
+              </p>
+            </div>
+            <div className="bg-amber-100 dark:bg-amber-900/30 p-2 sm:p-3 rounded-lg">
+              <Wallet className="h-4 w-4 sm:h-6 sm:w-6 text-amber-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Search + Method Filter */}
+      {/* Type Filter Pills + Search + Method Filter */}
       <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={typeFilter === "" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTypeFilter("")}
+            className={typeFilter === "" ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}
+          >
+            All
+          </Button>
+          <Button
+            variant={typeFilter === "pos" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTypeFilter("pos")}
+            className={typeFilter === "pos" ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}
+          >
+            POS Payments
+          </Button>
+          <Button
+            variant={typeFilter === "credit_repayment" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTypeFilter("credit_repayment")}
+            className={typeFilter === "credit_repayment" ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}
+          >
+            Credit Repayments
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-[#9898b8]" />
           <Input
-            placeholder="Search payments by ID, order, customer, or method..."
+            placeholder="Search by payment ID, order, customer, or method..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -326,12 +421,12 @@ export default function PaymentsPage() {
         <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm p-8 text-center">
           <Clock className="h-12 w-12 text-gray-300 dark:text-[#3d3d5c] mx-auto mb-3" />
           <p className="text-gray-600 dark:text-[#b4b4d0] font-medium">
-            {searchQuery ? "No payments match your search" : "No payments yet"}
+            {searchQuery || typeFilter ? "No payments match your filters" : "No payments yet"}
           </p>
           <p className="text-sm text-gray-500 dark:text-[#8888a8] mt-1">
-            {searchQuery
-              ? "Try a different search term"
-              : "Payments will appear here after completing POS transactions"}
+            {searchQuery || typeFilter
+              ? "Try adjusting your search or filters"
+              : "Payments will appear here after completing POS transactions or recording credit repayments"}
           </p>
         </div>
       )}
@@ -347,7 +442,10 @@ export default function PaymentsPage() {
                     Payment ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wider">
-                    Order
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wider">
+                    Reference
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wider">
                     Customer
@@ -378,9 +476,10 @@ export default function PaymentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        ORD-{payment.order_id}
-                      </div>
+                      <PaymentTypeBadge payment={payment} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <PaymentReference payment={payment} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">
@@ -430,8 +529,13 @@ export default function PaymentsPage() {
                     </div>
                     <SyncStatusIndicator payment={payment} />
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-[#b4b4d0] mt-0.5">
-                    ORD-{payment.order_id} &bull; {payment.customer_name || "Walk-in"}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <PaymentTypeBadge payment={payment} />
+                    <span className="text-xs text-gray-500 dark:text-[#b4b4d0]">
+                      {isCreditRepayment(payment)
+                        ? payment.customer_name || "—"
+                        : `${payment.order_number || `ORD-${payment.order_id}`} \u2022 ${payment.customer_name || "Walk-in"}`}
+                    </span>
                   </div>
                 </div>
                 <PaymentStatusBadge status={payment.status} />
