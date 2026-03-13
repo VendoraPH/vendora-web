@@ -216,7 +216,7 @@ function ProductSkeleton() {
 // Main page
 // ---------------------------------------------------------------------------
 export default function StoreProductsPage({ params }: { params: Promise<{ store: string }> }) {
-    const { store: storeCode } = use(params)
+    const { store: storeSlug } = use(params)
 
     const [storeInfo, setStoreInfo] = useState<ApiStore | null>(null)
     const [products, setProducts] = useState<UIProduct[]>([])
@@ -251,8 +251,8 @@ export default function StoreProductsPage({ params }: { params: Promise<{ store:
 
             try {
                 const [storeResult, apiProducts, cats] = await Promise.allSettled([
-                    storeService.getByCode(storeCode),
-                    storeService.getProductsByCode(storeCode, { per_page: 200 }),
+                    storeService.getBySlug(storeSlug),
+                    storeService.getProductsBySlug(storeSlug, { per_page: 200 }),
                     categoryService.getAll(),
                 ])
 
@@ -314,7 +314,7 @@ export default function StoreProductsPage({ params }: { params: Promise<{ store:
 
         fetchData()
         return () => { cancelled = true }
-    }, [storeCode])
+    }, [storeSlug])
 
     // Compute max price for filter slider
     const maxPrice = useMemo(() => {

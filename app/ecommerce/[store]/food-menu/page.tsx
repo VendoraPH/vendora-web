@@ -674,7 +674,7 @@ function ConfirmationModal({ items, buyer, onClose }: { items: ReservationItem[]
 // Main page
 // ---------------------------------------------------------------------------
 export default function FoodMenuPage({ params }: { params: Promise<{ store: string }> }) {
-    const { store: storeCode } = use(params)
+    const { store: storeSlug } = use(params)
     const [activeCategory, setActiveCategory] = useState<MealCategory>("all")
     const [searchQuery, setSearchQuery] = useState("")
     const [reservations, setReservations] = useState<ReservationItem[]>([])
@@ -817,7 +817,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
 
                         {/* Breadcrumb / tab nav */}
                         <div className="flex items-center gap-1 text-xs font-semibold mb-6">
-                            <Link href={`/ecommerce/${storeCode}/products`} className="text-purple-400 hover:text-purple-300 transition-colors">
+                            <Link href={`/ecommerce/${storeSlug}/products`} className="text-purple-400 hover:text-purple-300 transition-colors">
                                 Products
                             </Link>
                             <span className="text-purple-700 mx-1">/</span>

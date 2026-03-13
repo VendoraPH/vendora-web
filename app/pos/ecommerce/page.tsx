@@ -17,13 +17,13 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Link2,
+  Check,
+  Pencil,
 } from "lucide-react"
 import { storeService, orderService } from "@/services"
 import type { ApiStore } from "@/services"
 import type { ApiProduct } from "@/services/product.service"
-import { useOfflineData } from "@/hooks/use-offline-data"
-import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
-import { getOnlineStatus } from "@/lib/sync-service"
 import Swal from "sweetalert2"
 
 interface RecentOrder {
@@ -38,44 +38,45 @@ interface RecentOrder {
 
 export default function EcommercePage() {
   const [storeActive, setStoreActive] = useState(true)
+  const [store, setStore] = useState<ApiStore | null>(null)
+  const [products, setProducts] = useState<ApiProduct[]>([])
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [slugInput, setSlugInput] = useState("")
+  const [isEditingSlug, setIsEditingSlug] = useState(false)
+  const [slugSaving, setSlugSaving] = useState(false)
+  const [slugError, setSlugError] = useState<string | null>(null)
 
-  const { data, isLoading: loading, isStale, lastSyncedAt, error, refresh } = useOfflineData<{
-    store: ApiStore | null;
-    products: ApiProduct[];
-    recentOrders: RecentOrder[];
-  }>(
-    "ecommerce-store",
-    async () => {
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
       const storesRaw = await storeService.getAll()
       const stores = Array.isArray(storesRaw) ? storesRaw : (storesRaw as any).data || []
       const firstStore = stores[0] ?? null
-      let products: ApiProduct[] = []
-      let recentOrders: RecentOrder[] = []
+      setStore(firstStore)
       if (firstStore) {
-        try { products = await storeService.getProducts(firstStore.id, { per_page: 500 }) } catch {}
+        setStoreActive(firstStore.is_active)
+        setSlugInput(firstStore.slug || "")
+        try { setProducts(await storeService.getProducts(firstStore.id, { per_page: 500 })) } catch {}
         try {
           const ord = await orderService.getAll({ per_page: 10 } as any)
-          recentOrders = Array.isArray(ord) ? ord : (ord as any).data || []
+          setRecentOrders(Array.isArray(ord) ? ord : (ord as any).data || [])
         } catch {}
       }
-      return { store: firstStore, products, recentOrders }
-    },
-    { staleAfterMinutes: 10 }
-  )
-
-  const store = data?.store ?? null
-  const products = data?.products ?? []
-  const recentOrders = data?.recentOrders ?? []
+    } catch (err: any) {
+      setError(err?.message || "Failed to load store data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (data?.store) setStoreActive(data.store.is_active)
-  }, [data?.store])
+    fetchData()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStoreToggle = async (active: boolean) => {
-    if (!getOnlineStatus()) {
-      Swal.fire({ icon: "info", title: "Unavailable Offline", text: "Store activation cannot be changed while offline." })
-      return
-    }
     setStoreActive(active)
     if (store) {
       try {
@@ -86,6 +87,40 @@ export default function EcommercePage() {
       }
     }
   }
+
+  const handleSlugSave = async () => {
+    if (!store) return
+    const trimmed = slugInput.trim().toLowerCase()
+    if (!trimmed) {
+      setSlugError("Store URL cannot be empty")
+      return
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
+      setSlugError("Only lowercase letters, numbers, and hyphens allowed")
+      return
+    }
+    if (trimmed === store.slug) {
+      setIsEditingSlug(false)
+      return
+    }
+    setSlugSaving(true)
+    setSlugError(null)
+    try {
+      const updated = await storeService.update(store.id, { slug: trimmed } as any)
+      const updatedStore = (updated as any)?.data ?? updated
+      setStore({ ...store, slug: updatedStore.slug ?? trimmed })
+      setSlugInput(updatedStore.slug ?? trimmed)
+      setIsEditingSlug(false)
+      Swal.fire({ icon: "success", title: "URL Updated", text: "Your store URL has been updated.", timer: 2000, showConfirmButton: false })
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors?.slug?.[0] || err?.response?.data?.message || "Failed to update store URL"
+      setSlugError(msg)
+    } finally {
+      setSlugSaving(false)
+    }
+  }
+
+  const storeUrl = `/ecommerce/${store?.slug ?? "store"}/products`
 
   const totalProducts = products.length
   const publishedProducts = products.filter((p: any) => p.is_active !== false && p.status !== "draft").length
@@ -99,12 +134,12 @@ export default function EcommercePage() {
     )
   }
 
-  if (error && !data) {
+  if (error && !store) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] gap-4">
         <AlertCircle className="h-12 w-12 text-red-500" />
-        <p className="text-gray-600 dark:text-[#b4b4d0]">{error as string}</p>
-        <Button onClick={refresh} variant="outline">
+        <p className="text-gray-600 dark:text-[#b4b4d0]">{error}</p>
+        <Button onClick={fetchData} variant="outline">
           <RefreshCw className="w-4 h-4 mr-2" />
           Retry
         </Button>
@@ -114,7 +149,6 @@ export default function EcommercePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -123,7 +157,7 @@ export default function EcommercePage() {
         </div>
         <div className="flex gap-2">
           <Button className="bg-purple-600 hover:bg-purple-700 flex-1 sm:flex-none" asChild>
-            <a href={"/ecommerce/" + (store?.code ?? "store") + "/products"} target="_blank">
+            <a href={storeUrl} target="_blank">
               <ExternalLink className="w-4 h-4 mr-2" />
               Visit Store
             </a>
@@ -157,6 +191,93 @@ export default function EcommercePage() {
           </div>
         </div>
       </div>
+
+      {/* Store URL / Slug Setting */}
+      {store && (
+        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-3 sm:mb-4">
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+              <Link2 className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Store URL</h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Customize your public store link</p>
+            </div>
+          </div>
+
+          {isEditingSlug ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-[#b4b4d0] whitespace-nowrap hidden sm:inline">/ecommerce/</span>
+                <Input
+                  value={slugInput}
+                  onChange={(e) => {
+                    setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                    setSlugError(null)
+                  }}
+                  placeholder="your-store-name"
+                  className="flex-1"
+                  disabled={slugSaving}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSlugSave() }}
+                />
+                <span className="text-sm text-gray-500 dark:text-[#b4b4d0] whitespace-nowrap hidden sm:inline">/products</span>
+              </div>
+              {slugError && (
+                <p className="text-xs text-red-500">{slugError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  onClick={handleSlugSave}
+                  disabled={slugSaving}
+                >
+                  {slugSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Check className="w-4 h-4 mr-1" />}
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSlugInput(store.slug || "")
+                    setSlugError(null)
+                    setIsEditingSlug(false)
+                  }}
+                  disabled={slugSaving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <code className="text-sm bg-gray-100 dark:bg-[#1a1a35] px-3 py-1.5 rounded-md text-purple-600 dark:text-purple-400 truncate">
+                  /ecommerce/{store.slug}/products
+                </code>
+                <button
+                  onClick={() => setIsEditingSlug(true)}
+                  className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors shrink-0"
+                  title="Edit store URL"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-fit"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.origin + storeUrl)
+                  Swal.fire({ icon: "success", title: "Copied!", text: "Store URL copied to clipboard.", timer: 1500, showConfirmButton: false })
+                }}
+              >
+                Copy Link
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Store Analytics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -319,7 +440,7 @@ export default function EcommercePage() {
           </div>
         </div>
         <div className="flex gap-3 mt-4 sm:mt-6">
-          <Button className="bg-purple-600 hover:bg-purple-700 flex-1 sm:flex-none" onClick={refresh}>
+          <Button className="bg-purple-600 hover:bg-purple-700 flex-1 sm:flex-none" onClick={fetchData}>
             Sync Now
           </Button>
           <Button variant="outline" className="flex-1 sm:flex-none">
