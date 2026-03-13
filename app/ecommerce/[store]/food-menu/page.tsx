@@ -704,11 +704,8 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                 const headers: Record<string, string> = {}
                 if (buyerToken) headers["Authorization"] = `Bearer ${buyerToken}`
 
-                const todayDate = new Date().toLocaleDateString("en-CA", {
-                    timeZone: "Asia/Manila",
-                })
                 const response = await fetch(
-                    `${env.api.baseUrl}/food-menu?per_page=500&date=${todayDate}`,
+                    `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu?per_page=500`,
                     { headers }
                 )
                 if (response.ok) {
@@ -762,18 +759,26 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
         if (!buyer) return
         setIsSubmittingReservation(true)
         try {
+            const buyerToken = localStorage.getItem(BUYER_TOKEN_KEY)
+            const headers: Record<string, string> = { "Content-Type": "application/json" }
+            if (buyerToken) headers["Authorization"] = `Bearer ${buyerToken}`
+
             await Promise.all(
                 reservations.map((r) =>
-                    foodMenuService.createReservation({
-                        food_menu_item_id: Number(r.food.id),
-                        customer_name: buyer.name,
-                        customer_phone: "N/A",
-                        servings: r.qty,
+                    fetch(`${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/reserve`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            food_menu_item_id: Number(r.food.id),
+                            customer_name: buyer.name,
+                            customer_phone: "N/A",
+                            servings: r.qty,
+                        }),
                     })
                 )
             )
         } catch {
-            // If API fails (backend not ready), still show confirmation
+            // If API fails, still show confirmation
         } finally {
             setIsSubmittingReservation(false)
         }
