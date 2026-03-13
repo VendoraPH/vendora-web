@@ -651,19 +651,9 @@ export default function VendoraPOS() {
       let customerName = "Walk-in Customer";
 
       if (customer === "walkin") {
-        // Use first customer as default walk-in, or create if online
-        if (customers.length > 0 && customers[0]) {
-          customerId = customers[0].id;
-          customerName = customers[0].name;
-        } else if (syncService.getOnlineStatus()) {
-          const newCustomer = await customerService.create({ name: "Walk-in Customer", status: "active" });
-          customerId = newCustomer.id;
-          customerName = newCustomer.name;
-        } else {
-          // Offline: use placeholder ID (will be resolved during sync)
-          customerId = 1;
-          customerName = "Walk-in Customer";
-        }
+        // Walk-in orders don't need a customer record — backend accepts null customer_id
+        customerId = null;
+        customerName = "Walk-in Customer";
       } else if (customer === "saved1" && customers[0]) {
         customerId = customers[0].id;
         customerName = customers[0].name;
@@ -672,7 +662,7 @@ export default function VendoraPOS() {
         customerName = customers[1].name;
       }
 
-      if (!customerId && !isCredit) throw new Error("Customer selection required");
+      if (!customerId && customer !== "walkin" && !isCredit) throw new Error("Customer selection required");
 
       if (isCredit && resolvedCreditName.trim() !== "") {
         customerName = resolvedCreditName.trim();
@@ -692,11 +682,8 @@ export default function VendoraPOS() {
             customerId = newCustomer.id;
             console.log(`✅ Auto-registered new customer: ${newCustomer.name} (ID: ${newCustomer.id})`);
           } catch (e) {
-            console.warn("Could not auto-register customer, using placeholder ID", e);
-            customerId = customerId || 1;
+            console.warn("Could not auto-register customer, credit_customer data will be used by backend", e);
           }
-        } else {
-          customerId = customerId || 1;
         }
       }
 
@@ -710,7 +697,7 @@ export default function VendoraPOS() {
         : undefined;
 
       const transactionUuid = await syncService.saveTransactionLocally({
-        customer_id: customerId || 1, // Fallback if Walk-in customer ID is not set for credit transactions
+        customer_id: customerId ?? null,
         customer_name: customerName,
         ordered_at: new Date().toISOString().split('T')[0] || "",
         status: isCredit ? 'pending' : 'completed',

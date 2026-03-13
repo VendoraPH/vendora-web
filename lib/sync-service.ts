@@ -198,7 +198,6 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
     const isCredit = transaction.is_credit === true;
 
     const orderPayload: Record<string, any> = {
-      customer_id: transaction.customer_id,
       ordered_at: transaction.ordered_at,
       status: transaction.status,
       items: transaction.items.map(item => ({
@@ -206,6 +205,11 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
         quantity: item.quantity,
       }))
     };
+
+    // Only include customer_id if set — walk-in orders have null customer
+    if (transaction.customer_id) {
+      orderPayload.customer_id = transaction.customer_id;
+    }
 
     // Only include store_id if set — sending null/undefined causes 422
     if (transaction.store_id) {
