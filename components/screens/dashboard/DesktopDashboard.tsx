@@ -103,7 +103,7 @@ export default function DesktopDashboard() {
   const stats = kpis ? [
     {
       title: "Total Sales",
-      value: `₱ ${kpis.total_sales.toLocaleString()}`,
+      value: `₱ ${(kpis.total_sales / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       ...formatChange(kpis.total_sales_change),
       icon: PesoSign,
     },
@@ -115,7 +115,7 @@ export default function DesktopDashboard() {
     },
     {
       title: "Net Revenue",
-      value: `₱ ${kpis.net_revenue.toLocaleString()}`,
+      value: `₱ ${(kpis.net_revenue / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       change: "After discount",
       changeType: "label" as const,
       icon: Wallet,
