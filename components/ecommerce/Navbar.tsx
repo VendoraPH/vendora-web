@@ -82,9 +82,13 @@ export function Navbar() {
         setTheme(resolvedTheme === "dark" ? "light" : "dark")
     }
 
+    // Extract store code from current URL path (e.g. /ecommerce/MAIN/products → MAIN)
+    const pathSegments = pathname.split("/")
+    const storeCode = pathSegments[2] || "store"
+
     const navLinks = [
-        { href: "/ecommerce/rbtesa/products", label: "Shop", icon: null },
-        { href: "/ecommerce/rbtesa/food-menu", label: "Food Menu", icon: UtensilsCrossed },
+        { href: `/ecommerce/${storeCode}/products`, label: "Shop", icon: null },
+        { href: `/ecommerce/${storeCode}/food-menu`, label: "Food Menu", icon: UtensilsCrossed },
     ]
 
     return (
@@ -114,7 +118,7 @@ export function Navbar() {
                             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                         </Button>
 
-                        <Link href="/ecommerce/rbtesa/products" className="flex items-center">
+                        <Link href={`/ecommerce/${storeCode}/products`} className="flex items-center">
                             <Image
                                 src="/new-logo/website logo white.png"
                                 alt="Vendora"
