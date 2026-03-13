@@ -741,7 +741,9 @@ const payments = {
   async addFromTransaction(data: {
     id?: number;
     payment_number?: string;
-    order_id: number;
+    order_id: number | null;
+    order_number?: string | null;
+    customer_id?: number | null;
     customer_name?: string;
     amount: number;
     method: string;
@@ -756,6 +758,8 @@ const payments = {
       _lastModified: new Date(),
       payment_number: data.payment_number,
       order_id: data.order_id,
+      order_number: data.order_number ?? null,
+      customer_id: data.customer_id ?? null,
       customer_name: data.customer_name,
       amount: data.amount,
       method: data.method,
@@ -789,8 +793,10 @@ const payments = {
           _lastModified: now,
           payment_number: p.payment_number,
           order_id: p.order_id,
+          order_number: p.order_number ?? null,
+          customer_id: p.customer_id ?? null,
           customer_name: p.customer,
-          amount: Number(p.amount || 0) / 100,
+          amount: Number(p.amount || 0),
           method: p.method,
           status: p.status,
           paid_at: p.paid_at,

@@ -118,7 +118,9 @@ export interface LocalPayment {
   _lastModified: Date;
   _syncError?: string;
   payment_number?: string;
-  order_id: number;
+  order_id: number | null;
+  order_number?: string | null;
+  customer_id?: number | null;
   customer_name?: string;
   amount: number;
   method: string;
