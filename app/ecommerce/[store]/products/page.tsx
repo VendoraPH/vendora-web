@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import {
     SlidersHorizontal, LayoutGrid, X, Search, Loader2,
 } from "lucide-react"
-import { productService, categoryService, storeService } from "@/services"
+import { categoryService, storeService } from "@/services"
 import type { ApiProduct, ApiCategory, ApiStore } from "@/services"
 import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
@@ -250,21 +250,17 @@ export default function StoreProductsPage({ params }: { params: Promise<{ store:
             setError(null)
 
             try {
-                const [apiProducts, cats, storesRaw] = await Promise.allSettled([
-                    productService.getMy({ per_page: 200 }),
+                const [storeResult, apiProducts, cats] = await Promise.allSettled([
+                    storeService.getByCode(storeCode),
+                    storeService.getProductsByCode(storeCode, { per_page: 200 }),
                     categoryService.getAll(),
-                    storeService.getAll(),
                 ])
 
                 if (cancelled) return
 
                 // Resolve store info by code
-                if (storesRaw.status === "fulfilled") {
-                    const stores = Array.isArray(storesRaw.value) ? storesRaw.value : (storesRaw.value as any).data || []
-                    const matched = stores.find((s: ApiStore) => s.code === storeCode)
-                    if (matched) {
-                        setStoreInfo(matched)
-                    }
+                if (storeResult.status === "fulfilled") {
+                    setStoreInfo(storeResult.value)
                 }
 
                 // Process products

@@ -86,4 +86,20 @@ export const storeService = {
     getProducts: async (storeId: string | number, params?: { search?: string; per_page?: number }): Promise<ApiProduct[]> => {
         return api.get<ApiProduct[]>(endpoints.stores.products(storeId), { params })
     },
+
+    /**
+     * Public: Get store info by store code (no auth required)
+     * GET /api/ecommerce/stores/{code}
+     */
+    getByCode: async (code: string): Promise<ApiStore> => {
+        return api.get<ApiStore>(endpoints.stores.publicByCode(code))
+    },
+
+    /**
+     * Public: Get ecommerce products for a store by code (no auth required)
+     * GET /api/ecommerce/stores/{code}/products
+     */
+    getProductsByCode: async (code: string, params?: { per_page?: number }): Promise<ApiProduct[]> => {
+        return api.get<ApiProduct[]>(endpoints.stores.publicProducts(code), { params })
+    },
 }
