@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { BuyerAuthModal, BUYER_TOKEN_KEY, BUYER_USER_KEY, type BuyerUser } from "@/components/ecommerce/BuyerAuthModal"
-import { foodMenuService } from "@/services"
 import type { FoodMenuItem as ApiFoodMenuItem } from "@/services"
 import { env } from "@/config/env"
 
