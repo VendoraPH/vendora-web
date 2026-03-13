@@ -118,10 +118,10 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             email,
             address,
         },
-        totalAmount: Number(c.amount) || 0,
-        paidAmount: Number(c.paid_amount) || 0,
-        remainingBalance: Number(c.balance) || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
+        totalAmount: (Number(c.amount) || 0) / 100,
+        paidAmount: (Number(c.paid_amount) || 0) / 100,
+        remainingBalance: (Number(c.balance) || 0) / 100,
+        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
         dueDate: c.due_date ?? undefined,
         payments: [],
         items: [],
@@ -299,26 +299,28 @@ export default function CreditAccountsPage() {
             return
         }
 
-        const amount = Math.round(parseFloat(paymentAmount))
-        if (isNaN(amount) || amount <= 0) {
+        const amountPesos = parseFloat(paymentAmount)
+        if (isNaN(amountPesos) || amountPesos <= 0) {
             Swal.fire({ icon: "error", title: "Invalid Amount", text: "Please enter a valid payment amount." })
             return
         }
-        if (amount > selectedAccount.remainingBalance) {
+        if (amountPesos > selectedAccount.remainingBalance) {
             Swal.fire({ icon: "error", title: "Amount Too High", text: `Payment cannot exceed remaining balance of ₱${selectedAccount.remainingBalance.toLocaleString()}.` })
             return
         }
+
+        const amountCents = Math.round(amountPesos * 100)
 
         setIsSubmittingPayment(true)
         try {
             // Map "bank" to "online" for API compatibility
             const method = paymentMethod === "bank" ? "online" : paymentMethod as "cash" | "card" | "online"
-            await creditService.recordPayment(selectedAccount.id, { amount, method })
+            await creditService.recordPayment(selectedAccount.id, { amount: amountCents, method })
 
             Swal.fire({
                 icon: "success",
                 title: "Payment Recorded",
-                text: `₱${amount.toLocaleString()} payment recorded for ${selectedAccount.customer.name}.`,
+                text: `₱${amountPesos.toLocaleString()} payment recorded for ${selectedAccount.customer.name}.`,
                 timer: 2000,
                 showConfirmButton: false,
             })

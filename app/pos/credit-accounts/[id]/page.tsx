@@ -139,7 +139,7 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             item.sale_price ??
             item.price ??
             0
-        const unitPrice = Number(rawPrice) || 0
+        const unitPrice = (Number(rawPrice) || 0) / 100
 
         const qty = Number(item.quantity) || 1
         return {
@@ -147,7 +147,7 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             name,
             quantity: qty,
             unitPrice,
-            total: Number(item.total) || unitPrice * qty,
+            total: (Number(item.total) || 0) / 100 || unitPrice * qty,
         }
     })
 
@@ -160,10 +160,10 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
             email: c.customer?.email ?? undefined,
             address,
         },
-        totalAmount: Number(c.amount) || 0,
-        paidAmount: Number(c.paid_amount) || 0,
-        remainingBalance: Number(c.balance) || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
+        totalAmount: (Number(c.amount) || 0) / 100,
+        paidAmount: (Number(c.paid_amount) || 0) / 100,
+        remainingBalance: (Number(c.balance) || 0) / 100,
+        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
         dueDate: c.due_date ?? undefined,
         status,
         createdAt: c.created_at,
@@ -215,25 +215,27 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
             return
         }
 
-        const amount = Math.round(parseFloat(paymentAmount))
-        if (isNaN(amount) || amount <= 0) {
+        const amountPesos = parseFloat(paymentAmount)
+        if (isNaN(amountPesos) || amountPesos <= 0) {
             Swal.fire({ icon: "error", title: "Invalid Amount", text: "Please enter a valid payment amount." })
             return
         }
-        if (amount > account.remainingBalance) {
+        if (amountPesos > account.remainingBalance) {
             Swal.fire({ icon: "error", title: "Amount Too High", text: `Payment cannot exceed remaining balance of ₱${account.remainingBalance.toLocaleString()}.` })
             return
         }
 
+        const amountCents = Math.round(amountPesos * 100)
+
         setIsSubmittingPayment(true)
         try {
             const method = paymentMethod === "bank" ? "online" : paymentMethod as "cash" | "card" | "online"
-            await creditService.recordPayment(account.id, { amount, method })
+            await creditService.recordPayment(account.id, { amount: amountCents, method })
 
             Swal.fire({
                 icon: "success",
                 title: "Payment Recorded",
-                text: `₱${amount.toLocaleString()} payment recorded for ${account.customer.name}.`,
+                text: `₱${amountPesos.toLocaleString()} payment recorded for ${account.customer.name}.`,
                 timer: 2000,
                 showConfirmButton: false,
             })
