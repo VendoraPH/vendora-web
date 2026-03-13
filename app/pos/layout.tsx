@@ -42,7 +42,7 @@ import { ThemeToggle } from "@/components/pos/ThemeToggle"
 // import { NetworkStatusBadge } from "@/components/pos/NetworkStatusBadge"
 import { OfflineBanner } from "@/components/pos/OfflineBanner"
 import { useOfflineInit } from "@/hooks/use-offline-init"
-import { db } from "@/lib/db"
+import { db, clearDatabase } from "@/lib/db"
 import { syncService } from "@/lib/sync-service"
 import { authService } from "@/services/auth-jwt.service"
 import { tokenManager } from "@/lib/axios-client"
@@ -765,11 +765,13 @@ export default function POSLayout({ children }: { children: ReactNode }) {
                     onClick={async () => {
                       setIsLoggingOut(true)
                       try {
+                        await clearDatabase()
                         await authService.pos.logout()
                         sessionStorage.setItem('showLogout', 'true')
                         window.location.href = "/pos/auth/login"
                       } catch (error) {
                         console.error('Logout error:', error)
+                        await clearDatabase().catch(() => {})
                         sessionStorage.setItem('showLogout', 'true')
                         window.location.href = "/pos/auth/login"
                       }

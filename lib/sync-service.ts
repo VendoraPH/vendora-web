@@ -3,7 +3,7 @@
  * Handles online/offline detection and background synchronization
  */
 
-import { db, LocalTransaction, LocalProduct, LocalCategory, LocalCustomer, LocalStore } from './db';
+import { db, clearDatabase, LocalTransaction, LocalProduct, LocalCategory, LocalCustomer, LocalStore } from './db';
 import { orderService, paymentService, productService, categoryService, customerService, storeService } from '@/services';
 import type { ApiProduct, ApiCategory, ApiCustomer, ApiStore } from '@/services';
 import { networkMonitor } from './network-quality-monitor';
@@ -16,6 +16,8 @@ import {
 
 // Re-export so existing importers of sync-service still work
 export { getOnlineStatus, onOnlineStatusChange };
+
+const LOCAL_DB_OWNER_KEY = 'vendora_local_db_owner';
 
 // ==================== Online/Offline Detection ====================
 
@@ -535,9 +537,34 @@ export async function pushAllDirty(): Promise<{ synced: number; failed: number }
 }
 
 /**
+ * Clear local DB if a different user is now logged in.
+ * Prevents stale data from a previous session leaking across accounts.
+ */
+async function clearIfUserChanged(): Promise<void> {
+  try {
+    const raw = localStorage.getItem('vendora_user_profile')
+    if (!raw) return
+    const profile = JSON.parse(raw)
+    const currentUserId = String(profile?.id ?? '')
+    if (!currentUserId) return
+
+    const previousOwner = localStorage.getItem(LOCAL_DB_OWNER_KEY)
+    if (previousOwner && previousOwner !== currentUserId) {
+      console.log(`🔄 User changed (${previousOwner} → ${currentUserId}), clearing local DB`)
+      await clearDatabase()
+    }
+    localStorage.setItem(LOCAL_DB_OWNER_KEY, currentUserId)
+  } catch {
+    // Ignore parse errors
+  }
+}
+
+/**
  * Pull fresh data from the server for all entities
  */
 export async function pullAllFresh(): Promise<void> {
+  await clearIfUserChanged()
+
   const results = await Promise.allSettled([
     localDb.products.pullFresh(),
     localDb.customers.pullFresh(),
