@@ -149,7 +149,7 @@ export interface LocalTransaction {
   uuid: string;                    // Unique identifier (prevents duplicates)
   local_id?: number;               // Auto-increment local ID
   order_id?: number;               // Server order ID (after sync)
-  customer_id: number;
+  customer_id: number | null;
   customer_name: string;
   ordered_at: string;              // ISO date string
   status: 'pending' | 'completed' | 'failed';
