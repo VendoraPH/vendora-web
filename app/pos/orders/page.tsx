@@ -31,6 +31,8 @@ import {
   Printer,
   Filter,
   Loader2,
+  Cloud,
+  HardDrive,
 } from "lucide-react"
 
 type OrderRow = {
@@ -41,6 +43,7 @@ type OrderRow = {
   total: number
   status: "completed" | "pending" | "processing" | "cancelled"
   items: number
+  synced: boolean
 }
 
 const normalizeStatus = (status?: string): OrderRow["status"] => {
@@ -131,6 +134,7 @@ function DesktopOrdersLayout() {
       total: Number(o.total || 0),
       status: normalizeStatus(o.status),
       items: o.items_count || (o.items?.length || 0),
+      synced: o._status === 'synced',
     }))
   }, [localOrders])
 
@@ -398,7 +402,14 @@ function DesktopOrdersLayout() {
                       }`}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{order.id}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{order.id}</span>
+                        {order.synced ? (
+                          <span title="Synced to server" className="text-green-500 dark:text-green-400"><Cloud className="h-3.5 w-3.5" /></span>
+                        ) : (
+                          <span title="Local only — pending sync" className="text-amber-500 dark:text-amber-400"><HardDrive className="h-3.5 w-3.5" /></span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">{order.customer}</div>
@@ -450,7 +461,14 @@ function DesktopOrdersLayout() {
           <div key={order.id} className="bg-white dark:bg-[#13132a] p-4 rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">{order.id}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{order.id}</span>
+                  {order.synced ? (
+                    <span title="Synced to server" className="text-green-500 dark:text-green-400"><Cloud className="h-3 w-3" /></span>
+                  ) : (
+                    <span title="Local only — pending sync" className="text-amber-500 dark:text-amber-400"><HardDrive className="h-3 w-3" /></span>
+                  )}
+                </div>
                 <div className="text-sm text-gray-600 dark:text-[#b4b4d0] mt-0.5">{order.customer}</div>
               </div>
               <div>
