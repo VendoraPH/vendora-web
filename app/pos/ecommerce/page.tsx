@@ -367,7 +367,7 @@ export default function EcommercePage() {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="text-sm font-bold text-gray-900 dark:text-white">
-                      ₱{(order.total ?? 0).toLocaleString()}
+                      ₱{((order.total ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <Badge className={`${statusColor} hidden sm:inline-flex`}>
                       {statusLabel}
