@@ -9,6 +9,8 @@ export interface DashboardKPIs {
     average_order_value: number
     items_sold: number
     currency: string
+    total_sales_change: number
+    total_orders_change: number
 }
 
 export interface SalesTrendSeries {

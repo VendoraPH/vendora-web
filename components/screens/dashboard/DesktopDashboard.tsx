@@ -75,33 +75,41 @@ export default function DesktopDashboard() {
   } = useDashboardData(dateParams)
 
   // Transform KPI data to stats format
+  const formatChange = (change: number): { change: string; changeType: "positive" | "negative" | "neutral" } => {
+    if (change === 0) {
+      return { change: "0%", changeType: "neutral" }
+    }
+    return {
+      change: `${change > 0 ? "+" : ""}${change}%`,
+      changeType: change > 0 ? "positive" : "negative",
+    }
+  }
+
   const stats = kpis ? [
     {
       title: "Total Sales",
       value: `₱ ${kpis.total_sales.toLocaleString()}`,
-      change: "+8.4%", // Note: API doesn't provide percentage change
-      changeType: "positive" as const,
+      ...formatChange(kpis.total_sales_change),
       icon: PesoSign,
     },
     {
       title: "Total Orders",
       value: kpis.total_orders.toString(),
-      change: "+4.1%",
-      changeType: "positive" as const,
+      ...formatChange(kpis.total_orders_change),
       icon: ShoppingBag,
     },
     {
       title: "Net Revenue",
       value: `₱ ${kpis.net_revenue.toLocaleString()}`,
       change: "After discount",
-      changeType: "positive" as const,
+      changeType: "label" as const,
       icon: Wallet,
     },
     {
       title: "Items Sold",
       value: kpis.items_sold.toLocaleString(),
       change: "POS and Online",
-      changeType: "positive" as const,
+      changeType: "label" as const,
       icon: Package,
     },
   ] : []

@@ -8,7 +8,7 @@ interface StatCard {
   title: string
   value: string
   change: string
-  changeType: "positive" | "negative"
+  changeType: "positive" | "negative" | "neutral" | "label"
   subtitle?: string
   icon: ComponentType<{ className?: string }>
 }
@@ -41,14 +41,18 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
                   </div>
                   {/* Change indicator moved to top right */}
                   <span
-                    className={`text-xs sm:text-sm font-bold flex items-center gap-0.5 shrink-0 ${stat.changeType === "positive"
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                      }`}
+                    className={`text-xs sm:text-sm font-bold flex items-center gap-0.5 shrink-0 ${
+                      stat.changeType === "positive"
+                        ? "text-green-600 dark:text-green-400"
+                        : stat.changeType === "negative"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-gray-500 dark:text-[#b4b4d0]"
+                    }`}
                   >
-                    {stat.changeType === "positive" ? (
+                    {stat.changeType === "positive" && (
                       <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    ) : (
+                    )}
+                    {stat.changeType === "negative" && (
                       <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     )}
                     <span className="hidden sm:inline">{stat.change}</span>
