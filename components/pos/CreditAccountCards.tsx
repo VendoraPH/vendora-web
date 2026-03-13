@@ -31,11 +31,34 @@ interface CreditAccount {
     paidAmount: number
     remainingBalance: number
     dueDate?: string
+    installmentPlan?: {
+        frequency: 'weekly' | 'monthly' | 'custom'
+        amount: number
+        nextDue: string
+    }
+    payments: {
+        id: number
+        amount: number
+        paymentDate: string
+        method: 'cash' | 'card' | 'bank'
+        notes?: string
+        receivedBy?: string
+    }[]
+    items: {
+        id: number
+        name: string
+        quantity: number
+        unitPrice: number
+        total: number
+        date: string
+        status: 'pending' | 'partial' | 'paid'
+        paidAmount?: number
+    }[]
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
     orderNumber?: string
-    payments: unknown[]
-    items: unknown[]
+    lastPaymentDate?: string
+    creditLimit?: number
 }
 
 interface GroupedCreditAccount {
