@@ -128,7 +128,7 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
         items: [],
         status,
         createdAt: c.created_at,
-        orderNumber: c.order?.order_number ?? undefined,
+        orderNumber: c.order_number ?? c.order?.order_number ?? undefined,
     }
 }
 
