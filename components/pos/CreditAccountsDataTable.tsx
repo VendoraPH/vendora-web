@@ -327,7 +327,7 @@ export function CreditAccountsDataTable({
                     .sort()
                 return (
                     <span className="text-gray-600 dark:text-[#b4b4d0]">
-                        {dueDates.length > 0 ? formatDate(dueDates[0]) : '-'}
+                        {dueDates.length > 0 ? formatDate(dueDates[0]!) : '-'}
                     </span>
                 )
             },
