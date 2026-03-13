@@ -53,6 +53,8 @@ export interface ApiCredit {
             total?: number | null
         }>
     } | null
+    /** Order number from the associated order */
+    order_number?: string | null
     /** Total original credit amount */
     amount: number
     /** Total amount paid so far */
