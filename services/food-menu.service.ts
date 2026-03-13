@@ -42,9 +42,30 @@ export interface FoodMenuCreatePayload {
   price: number
   total_servings: number
   is_available: boolean
+  image?: File
 }
 
 export interface FoodMenuUpdatePayload extends Partial<FoodMenuCreatePayload> {}
+
+const buildFoodMenuFormData = (data: FoodMenuCreatePayload | FoodMenuUpdatePayload): FormData => {
+  const formData = new FormData()
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value === undefined || value === null) return
+
+    if (key === "image") {
+      if (value instanceof File) {
+        formData.append("image", value)
+      }
+    } else if (typeof value === "boolean") {
+      formData.append(key, value ? "1" : "0")
+    } else {
+      formData.append(key, String(value))
+    }
+  })
+
+  return formData
+}
 
 export interface PaginatedFoodMenuResponse {
   data: FoodMenuItem[]
@@ -100,11 +121,22 @@ export const foodMenuService = {
   },
 
   create: async (data: FoodMenuCreatePayload): Promise<FoodMenuItem> => {
-    return api.post<FoodMenuItem>(endpoints.foodMenu.create(), data)
+    if (data.image instanceof File) {
+      const formData = buildFoodMenuFormData(data)
+      return api.upload<FoodMenuItem>(endpoints.foodMenu.create(), formData)
+    }
+    const { image, ...payload } = data
+    return api.post<FoodMenuItem>(endpoints.foodMenu.create(), payload)
   },
 
   update: async (id: number, data: FoodMenuUpdatePayload): Promise<FoodMenuItem> => {
-    return api.put<FoodMenuItem>(endpoints.foodMenu.update(id), data)
+    if (data.image instanceof File) {
+      const formData = buildFoodMenuFormData(data)
+      formData.append("_method", "PUT")
+      return api.upload<FoodMenuItem>(endpoints.foodMenu.update(id), formData)
+    }
+    const { image, ...payload } = data
+    return api.put<FoodMenuItem>(endpoints.foodMenu.update(id), payload)
   },
 
   delete: async (id: number): Promise<void> => {

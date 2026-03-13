@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
+import NextImage from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -32,6 +33,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Image as ImageIcon,
+  X,
 } from "lucide-react"
 import Swal from "sweetalert2"
 import { foodMenuService } from "@/services"
@@ -71,6 +74,7 @@ type MenuItem = {
   totalServings: number
   reservedServings: number
   isAvailable: boolean
+  image?: string | null
 }
 
 type Reservation = {
@@ -121,6 +125,7 @@ function mapApiFoodMenuItem(item: ApiFoodMenuItem): MenuItem {
     totalServings: item.total_servings ?? 0,
     reservedServings: item.reserved_servings ?? 0,
     isAvailable: item.is_available ?? true,
+    image: item.image ?? null,
   }
 }
 
@@ -235,6 +240,24 @@ export default function FoodMenuPage() {
   const [form, setForm]                 = useState<ItemForm>(initialForm)
   const [isSaving, setIsSaving]         = useState(false)
 
+  // ── Image state ───────────────────────────────────────────────────────────
+  const [imagePreview, setImagePreview]   = useState<string | null>(null)
+  const [imageFile, setImageFile]         = useState<File | null>(null)
+  const galleryInputRef                   = useRef<HTMLInputElement>(null)
+
+  const handleImageSelect = (file: File) => {
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setImagePreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setImagePreview(null)
+    setImageFile(null)
+    if (galleryInputRef.current) galleryInputRef.current.value = ""
+  }
+
   // ── Reservations filter state ───────────────────────────────────────────────
   const [resSearch, setResSearch]           = useState("")
   const [resStatusFilter, setResStatusFilter] = useState<Reservation["status"] | "All">("All")
@@ -315,6 +338,7 @@ export default function FoodMenuPage() {
     setForm(initialForm)
     setIsEditing(false)
     setEditingId(null)
+    removeImage()
     setIsDialogOpen(true)
   }
 
@@ -327,6 +351,8 @@ export default function FoodMenuPage() {
       totalServings: String(item.totalServings),
       isAvailable: item.isAvailable,
     })
+    setImagePreview(item.image ?? null)
+    setImageFile(null)
     setIsEditing(true)
     setEditingId(item.id)
     setIsDialogOpen(true)
@@ -341,6 +367,7 @@ export default function FoodMenuPage() {
     setForm(initialForm)
     setIsEditing(false)
     setEditingId(null)
+    removeImage()
   }
 
   // ── Save ────────────────────────────────────────────────────────────────────
@@ -367,6 +394,7 @@ export default function FoodMenuPage() {
       price: Number(form.price),
       total_servings: Number(form.totalServings),
       is_available: form.isAvailable,
+      ...(imageFile ? { image: imageFile } : {}),
     }
 
     try {
@@ -682,9 +710,15 @@ export default function FoodMenuPage() {
                         {/* Item */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                              <UtensilsCrossed className="w-4 h-4 text-[#7C3AED]" />
-                            </div>
+                            {item.image ? (
+                              <div className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden">
+                                <NextImage src={item.image} alt={item.name} width={36} height={36} className="w-full h-full object-cover" unoptimized />
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                                <UtensilsCrossed className="w-4 h-4 text-[#7C3AED]" />
+                              </div>
+                            )}
                             <div>
                               <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
                               {item.description && (
@@ -877,9 +911,15 @@ export default function FoodMenuPage() {
                     key={item.id}
                     className="relative flex flex-col rounded-2xl border border-gray-200 dark:border-purple-900/50 bg-white dark:bg-[#1a0f2e] overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-center justify-center h-36 bg-gradient-to-br from-purple-50 to-violet-100 dark:from-[#2a1a4e] dark:to-[#1f1040]">
-                      <UtensilsCrossed className="w-12 h-12 text-purple-300 dark:text-purple-700" />
-                    </div>
+                    {item.image ? (
+                      <div className="relative h-36">
+                        <NextImage src={item.image} alt={item.name} fill className="object-cover" unoptimized />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-36 bg-gradient-to-br from-purple-50 to-violet-100 dark:from-[#2a1a4e] dark:to-[#1f1040]">
+                        <UtensilsCrossed className="w-12 h-12 text-purple-300 dark:text-purple-700" />
+                      </div>
+                    )}
 
                     <span className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-semibold rounded-full border ${avail.color}`}>
                       {avail.label}
@@ -1106,6 +1146,50 @@ export default function FoodMenuPage() {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-purple-900/40 bg-gray-50 dark:bg-[#1c0f35] text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/50 resize-none transition-colors"
+              />
+            </div>
+
+            {/* Image */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Image</label>
+              {imagePreview ? (
+                <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-purple-900/40">
+                  <NextImage
+                    src={imagePreview}
+                    alt="Preview"
+                    width={400}
+                    height={200}
+                    className="w-full h-40 object-cover"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-gray-200 dark:border-purple-900/40 bg-gray-50 dark:bg-[#1c0f35] hover:border-[#7C3AED] dark:hover:border-[#7C3AED] transition-colors cursor-pointer"
+                >
+                  <ImageIcon className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Click to upload image</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">JPEG, PNG, GIF, WebP (max 5MB)</span>
+                </button>
+              )}
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImageSelect(file)
+                }}
               />
             </div>
 
