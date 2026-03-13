@@ -2,7 +2,13 @@
 
 import { Store, MapPin, Clock, Phone, Star } from "lucide-react"
 
-export function StoreBanner() {
+interface StoreBannerProps {
+    name?: string
+    address?: string
+    phone?: string
+}
+
+export function StoreBanner({ name, address, phone }: StoreBannerProps) {
     return (
         <section className="relative w-full overflow-hidden bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-[#110228] dark:via-[#1a0440] dark:to-[#110228]">
             {/* Decorative orbs */}
@@ -19,7 +25,7 @@ export function StoreBanner() {
                     {/* Store Name */}
                     <div className="space-y-2">
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-gray-900 dark:text-white">
-                            Luna Street Mart
+                            {name || "Luna Street Mart"}
                         </h1>
                         <p className="text-base sm:text-lg font-medium text-gray-500 dark:text-white/50">
                             Your Trusted Neighborhood Store
@@ -30,7 +36,7 @@ export function StoreBanner() {
                     <div className="flex items-center gap-2 text-gray-600 dark:text-white/60">
                         <MapPin className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED] shrink-0" />
                         <span className="text-sm sm:text-base">
-                            123 Rizal Ave, Brgy. San Isidro, Quezon City
+                            {address || "123 Rizal Ave, Brgy. San Isidro, Quezon City"}
                         </span>
                     </div>
 
@@ -43,7 +49,7 @@ export function StoreBanner() {
                         <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
                         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/45">
                             <Phone className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED]" />
-                            <span className="font-medium">+63 912 345 6789</span>
+                            <span className="font-medium">{phone || "+63 912 345 6789"}</span>
                         </div>
                         <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
                         <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/45">
