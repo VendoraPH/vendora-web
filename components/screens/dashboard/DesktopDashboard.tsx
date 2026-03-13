@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2 } from "lucide-react"
@@ -31,6 +31,7 @@ import {
 import { useDashboardData } from "@/hooks/useDashboardData"
 import type { DateRangeParams } from "@/types/dashboard"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
+import { TOKEN_CONFIG } from "@/config/api.config"
 
 /**
  * Default Dashboard Layout
@@ -39,6 +40,20 @@ import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 export default function DesktopDashboard() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [period, setPeriod] = useState("7days")
+  const [displayName, setDisplayName] = useState("")
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TOKEN_CONFIG.USER_PROFILE_KEY)
+      if (!raw) return
+      const profile = JSON.parse(raw)
+      // Use first owned store name, then business_name, then user name
+      const storeName = profile?.stores?.[0]?.name
+      setDisplayName(storeName || profile?.business_name || profile?.name || "")
+    } catch {
+      // Ignore parse errors
+    }
+  }, [])
 
   // Compute date range from selected period
   const dateParams = useMemo<DateRangeParams | undefined>(() => {
@@ -146,7 +161,7 @@ export default function DesktopDashboard() {
       <div className="hidden sm:flex sm:flex-col gap-3 bg-white dark:bg-card p-4 sm:p-6 rounded-lg border border-gray-200 dark:border-border xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-[#b4b4d0]">Welcome back</p>
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-1">Bunya Retail Shop</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-1">{displayName || "Your Store"}</h1>
         </div>
         <div className="hidden w-full flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
           <Select value={period} onValueChange={setPeriod}>
