@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, use } from "react"
 import { ProductCard } from "@/components/ecommerce/ProductCard"
 import { StoreBanner } from "@/components/ecommerce/StoreBanner"
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input"
 import {
     SlidersHorizontal, LayoutGrid, X, Search, Loader2,
 } from "lucide-react"
-import { productService, categoryService } from "@/services"
-import type { ApiProduct, ApiCategory } from "@/services"
+import { productService, categoryService, storeService } from "@/services"
+import type { ApiProduct, ApiCategory, ApiStore } from "@/services"
 import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet"
@@ -215,7 +215,10 @@ function ProductSkeleton() {
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
-export default function RbtesaProductsPage() {
+export default function StoreProductsPage({ params }: { params: Promise<{ store: string }> }) {
+    const { store: storeCode } = use(params)
+
+    const [storeInfo, setStoreInfo] = useState<ApiStore | null>(null)
     const [products, setProducts] = useState<UIProduct[]>([])
     const [apiCategories, setApiCategories] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -238,7 +241,7 @@ export default function RbtesaProductsPage() {
         setIsMounted(true)
     }, [])
 
-    // Fetch products and categories from API
+    // Fetch store info, products, and categories from API
     useEffect(() => {
         let cancelled = false
 
@@ -247,12 +250,22 @@ export default function RbtesaProductsPage() {
             setError(null)
 
             try {
-                const [apiProducts, cats] = await Promise.allSettled([
+                const [apiProducts, cats, storesRaw] = await Promise.allSettled([
                     productService.getMy({ per_page: 200 }),
                     categoryService.getAll(),
+                    storeService.getAll(),
                 ])
 
                 if (cancelled) return
+
+                // Resolve store info by code
+                if (storesRaw.status === "fulfilled") {
+                    const stores = Array.isArray(storesRaw.value) ? storesRaw.value : (storesRaw.value as any).data || []
+                    const matched = stores.find((s: ApiStore) => s.code === storeCode)
+                    if (matched) {
+                        setStoreInfo(matched)
+                    }
+                }
 
                 // Process products
                 let rawProducts: ApiProduct[] = []
@@ -305,7 +318,7 @@ export default function RbtesaProductsPage() {
 
         fetchData()
         return () => { cancelled = true }
-    }, [])
+    }, [storeCode])
 
     // Compute max price for filter slider
     const maxPrice = useMemo(() => {
@@ -380,7 +393,11 @@ export default function RbtesaProductsPage() {
         <div className="min-h-screen bg-[#f8f8fc] dark:bg-[#110228]">
 
             {/* ── Store Identity Banner ──────────────────────────────── */}
-            <StoreBanner />
+            <StoreBanner
+                name={storeInfo?.name}
+                address={storeInfo?.address}
+                phone={storeInfo?.phone}
+            />
 
             {/* ── Main Content ────────────────────────────────────────── */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-10 sm:space-y-14">
