@@ -660,32 +660,38 @@ const orders = {
           .map(o => o.id)
       );
 
+      // Build a set of server order numbers to clean up local TXN-* duplicates later
+      const serverOrderNumbers = new Set<string>();
+
       const now = new Date();
       for (const o of apiOrders) {
         const orderId = (o as any).id;
         if (dirtyIds.has(orderId)) continue;
 
+        const orderNumber = (o as any).order_number || (o as any).orderNumber || '';
+        if (orderNumber) serverOrderNumbers.add(orderNumber);
+
+        // Resolve customer name — API may return customer as string or object
+        const rawCustomer = (o as any).customer;
+        const customerName = typeof rawCustomer === 'string'
+          ? rawCustomer
+          : rawCustomer?.name || (o as any).customer_name || 'Walk-in';
+
+        // API returns monetary values in cents — convert to pesos for local display
         await db.orders.put({
           id: orderId,
           _status: 'synced',
           _lastModified: now,
-          order_number: (o as any).order_number || (o as any).orderNumber,
-          customer_id: (o as any).customer_id || (o as any).customer?.id,
-          customer_name: (() => {
-            const cc = (o as any).credit_customer;
-            if (cc) {
-              const full = `${cc.first_name || ''} ${cc.last_name || ''}`.trim();
-              if (full) return full;
-            }
-            return (o as any).customer?.name || (o as any).customer_name || 'Walk-in';
-          })(),
+          order_number: orderNumber,
+          customer_id: (o as any).customer_id || (typeof rawCustomer === 'object' ? rawCustomer?.id : undefined),
+          customer_name: customerName,
           ordered_at: (o as any).ordered_at || (o as any).created_at,
           status: (o as any).status || 'pending',
-          total: Number((o as any).total || 0),
-          subtotal: Number((o as any).subtotal || 0),
-          tax: Number((o as any).tax || 0),
-          discount: Number((o as any).discount || 0),
-          delivery_fee: Number((o as any).delivery_fee || 0),
+          total: Number((o as any).total || 0) / 100,
+          subtotal: Number((o as any).subtotal || 0) / 100,
+          tax: Number((o as any).tax || 0) / 100,
+          discount: Number((o as any).discount || 0) / 100,
+          delivery_fee: Number((o as any).delivery_fee || 0) / 100,
           payment_method: (o as any).payment_method,
           items_count: Array.isArray((o as any).items)
             ? (o as any).items.length
@@ -701,6 +707,15 @@ const orders = {
       const allLocal = await db.orders.where('_status').equals('synced').toArray();
       for (const local of allLocal) {
         if (local.id > 0 && !serverIds.has(local.id)) {
+          await db.orders.delete(local.id);
+        }
+      }
+
+      // Clean up local TXN-* orders that have been synced to the server
+      // (they show as duplicates alongside the ORD-* server version)
+      const localCreated = await db.orders.where('_status').equals('created').toArray();
+      for (const local of localCreated) {
+        if (local.id < 0 && local.order_number?.startsWith('TXN-')) {
           await db.orders.delete(local.id);
         }
       }
@@ -775,7 +790,7 @@ const payments = {
           payment_number: p.payment_number,
           order_id: p.order_id,
           customer_name: p.customer,
-          amount: p.amount,
+          amount: Number(p.amount || 0) / 100,
           method: p.method,
           status: p.status,
           paid_at: p.paid_at,
