@@ -330,7 +330,7 @@ function mapApiToFoodItem(item: ApiFoodMenuItem): FoodItem {
         description: item.description,
         price: item.price,
         category: mapCategoryToMeal(item.category),
-        image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
+        image: item.image || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
         totalQty: item.total_servings,
         availableQty: item.total_servings - item.reserved_servings,
         rating: 4.5,
