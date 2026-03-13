@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { dashboardService } from '@/services/dashboard.service'
 import { orderService } from '@/services/order.service'
 import { db } from '@/lib/db'
+import { env } from '@/config/env'
 import type {
     DashboardKPIs,
     SalesTrend,
@@ -99,7 +100,7 @@ export function useDashboardData(dateParams?: DateRangeParams) {
                     action: "create",
                     model_type: "Order",
                     model_id: Number(order.id) || 0,
-                    message: `Processed order #${order.orderNumber || order.id} for ₱${Number(order.total || 0).toLocaleString()}`,
+                    message: `Processed order #${order.orderNumber || order.id} for ${env.business.currencySymbol}${Number(order.total || 0).toLocaleString()}`,
                     created_at: new Date(order.createdAt || new Date()).toISOString()
                 }))
 

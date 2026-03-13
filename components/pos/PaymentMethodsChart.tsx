@@ -70,8 +70,8 @@ export function PaymentMethodsChart({ data, className, contentClassName }: Payme
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-gray-900 dark:text-white leading-none">3</span>
-              <span className="text-[9px] uppercase text-gray-400 font-medium tracking-wider mt-0.5">Providers</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white leading-none">{chartData.filter(d => d.value > 0).length || "—"}</span>
+              <span className="text-[9px] uppercase text-gray-400 font-medium tracking-wider mt-0.5">{chartData.filter(d => d.value > 0).length === 1 ? "Method" : "Methods"}</span>
             </div>
           </div>
 
