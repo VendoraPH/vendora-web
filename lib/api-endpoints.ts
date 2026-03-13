@@ -438,11 +438,11 @@ export const storeEndpoints = {
     buildUrl("/stores/:storeId/staff/:userId", { storeId, userId }),
 
   // Public ecommerce endpoints (no auth required)
-  // GET /ecommerce/stores/:code
-  publicByCode: (code: string) => `/ecommerce/stores/${code}`,
+  // GET /ecommerce/stores/:slug
+  publicBySlug: (slug: string) => `/ecommerce/stores/${slug}`,
 
-  // GET /ecommerce/stores/:code/products
-  publicProducts: (code: string) => `/ecommerce/stores/${code}/products`,
+  // GET /ecommerce/stores/:slug/products
+  publicProducts: (slug: string) => `/ecommerce/stores/${slug}/products`,
 }
 
 /**

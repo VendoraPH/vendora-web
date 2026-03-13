@@ -15,6 +15,7 @@ export interface ApiStore {
     id: number
     name: string
     code: string
+    slug: string
     address?: string
     phone?: string
     is_active: boolean
@@ -27,6 +28,7 @@ export interface ApiStore {
  */
 export interface StorePayload {
     name: string
+    slug?: string
     address?: string
     is_active?: boolean
 }
@@ -88,18 +90,18 @@ export const storeService = {
     },
 
     /**
-     * Public: Get store info by store code (no auth required)
-     * GET /api/ecommerce/stores/{code}
+     * Public: Get store info by slug (no auth required)
+     * GET /api/ecommerce/stores/{slug}
      */
-    getByCode: async (code: string): Promise<ApiStore> => {
-        return api.get<ApiStore>(endpoints.stores.publicByCode(code))
+    getBySlug: async (slug: string): Promise<ApiStore> => {
+        return api.get<ApiStore>(endpoints.stores.publicBySlug(slug))
     },
 
     /**
-     * Public: Get ecommerce products for a store by code (no auth required)
-     * GET /api/ecommerce/stores/{code}/products
+     * Public: Get ecommerce products for a store by slug (no auth required)
+     * GET /api/ecommerce/stores/{slug}/products
      */
-    getProductsByCode: async (code: string, params?: { per_page?: number }): Promise<ApiProduct[]> => {
-        return api.get<ApiProduct[]>(endpoints.stores.publicProducts(code), { params })
+    getProductsBySlug: async (slug: string, params?: { per_page?: number }): Promise<ApiProduct[]> => {
+        return api.get<ApiProduct[]>(endpoints.stores.publicProducts(slug), { params })
     },
 }
