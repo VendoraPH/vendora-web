@@ -24,9 +24,9 @@ import { getOnlineStatus } from "@/lib/sync-service"
 
 // ==================== Helpers ====================
 
-/** API amounts are already in pesos */
-const formatCurrency = (amount: number) =>
-  `₱${(amount ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** API amounts are stored in cents — convert to pesos for display */
+const formatCurrency = (amountCents: number) =>
+  `₱${((amountCents ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const formatDateTime = (value?: string) => {
   if (!value) return "—"
