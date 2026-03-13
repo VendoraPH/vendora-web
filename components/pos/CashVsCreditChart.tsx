@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { Banknote, CreditCard } from "lucide-react"
@@ -30,6 +31,7 @@ export function CashVsCreditChart({ data, className }: Props) {
   const legend = [
     {
       label:  "Cash",
+      method: "cash",
       icon:   Banknote,
       pct:    cashPct,
       amount: cashAmount,
@@ -38,6 +40,7 @@ export function CashVsCreditChart({ data, className }: Props) {
     },
     {
       label:  "Credit",
+      method: "credit",
       icon:   CreditCard,
       pct:    creditPct,
       amount: creditAmount,
@@ -125,9 +128,12 @@ export function CashVsCreditChart({ data, className }: Props) {
                 <span className="text-[11px] text-gray-500 dark:text-[#b4b4d0]">
                   ₱ {item.amount.toLocaleString()}
                 </span>
-                <span className="text-[10px] text-gray-400 dark:text-[#9898b8]">
+                <Link
+                  href={`/pos/payments?method=${item.method}`}
+                  className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                >
                   {item.count} {item.count === 1 ? "transaction" : "transactions"}
-                </span>
+                </Link>
               </div>
             ))}
           </div>

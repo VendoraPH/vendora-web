@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import {
   CloudOff,
   Clock,
 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { useLocalPayments } from "@/hooks/use-local-data"
 import { localDb } from "@/lib/local-first-service"
 import type { LocalPayment } from "@/lib/db"
@@ -126,9 +127,19 @@ function computeStats(payments: LocalPayment[]) {
 // ==================== Main Page ====================
 
 export default function PaymentsPage() {
+  const searchParams = useSearchParams()
   const { data: payments, isLoading, dirtyCount } = useLocalPayments()
   const [searchQuery, setSearchQuery] = useState("")
+  const [methodFilter, setMethodFilter] = useState<string>("")
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Read method filter from URL params on mount
+  useEffect(() => {
+    const method = searchParams.get("method")
+    if (method) {
+      setMethodFilter(method.toLowerCase())
+    }
+  }, [searchParams])
 
   // Pull fresh data from API
   const handleRefresh = useCallback(async () => {
@@ -152,18 +163,29 @@ export default function PaymentsPage() {
     })
   }, [payments])
 
-  // Filter by search
+  // Filter by search and method
   const filteredPayments = useMemo(() => {
+    let result = sortedPayments
+
+    if (methodFilter) {
+      result = result.filter(
+        (p) => (p.method ?? "").toLowerCase() === methodFilter
+      )
+    }
+
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return sortedPayments
-    return sortedPayments.filter(
-      (p) =>
-        (p.payment_number ?? "").toLowerCase().includes(q) ||
-        String(p.order_id ?? "").includes(q) ||
-        (p.customer_name ?? "").toLowerCase().includes(q) ||
-        (p.method ?? "").toLowerCase().includes(q)
-    )
-  }, [sortedPayments, searchQuery])
+    if (q) {
+      result = result.filter(
+        (p) =>
+          (p.payment_number ?? "").toLowerCase().includes(q) ||
+          String(p.order_id ?? "").includes(q) ||
+          (p.customer_name ?? "").toLowerCase().includes(q) ||
+          (p.method ?? "").toLowerCase().includes(q)
+      )
+    }
+
+    return result
+  }, [sortedPayments, searchQuery, methodFilter])
 
   // Compute stats from all local data (not filtered)
   const stats = useMemo(() => computeStats(payments), [payments])
@@ -273,15 +295,30 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-[#9898b8]" />
-        <Input
-          placeholder="Search payments by ID, order, customer, or method..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search + Method Filter */}
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-[#9898b8]" />
+          <Input
+            placeholder="Search payments by ID, order, customer, or method..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {methodFilter && (
+          <div className="flex items-center gap-2">
+            <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 gap-1">
+              Method: {methodFilter.charAt(0).toUpperCase() + methodFilter.slice(1)}
+              <button
+                onClick={() => setMethodFilter("")}
+                className="ml-1 hover:text-purple-950 dark:hover:text-purple-200"
+              >
+                &times;
+              </button>
+            </Badge>
+          </div>
+        )}
       </div>
 
       {/* Empty State */}
