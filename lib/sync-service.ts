@@ -240,7 +240,7 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
         transaction.payment_methods.map(pm =>
           paymentService.create({
             order_id: order.id as unknown as number,
-            amount: Math.round(pm.amount),
+            amount: Math.round(pm.amount * 100),
             method: pm.method,
             status: 'completed',
             paid_at: paidAt
@@ -252,7 +252,7 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
       // Single payment
       await paymentService.create({
         order_id: order.id as unknown as number,
-        amount: Math.round(transaction.amount_tendered),
+        amount: Math.round(transaction.amount_tendered * 100),
         method: transaction.payment_method,
         status: 'completed',
         paid_at: paidAt
