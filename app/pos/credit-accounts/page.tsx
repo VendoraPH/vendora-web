@@ -86,6 +86,7 @@ interface CreditAccount {
     items: PurchasedItem[]
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
+    orderNumber?: string
     lastPaymentDate?: string
 }
 
@@ -127,7 +128,53 @@ function mapApiCredit(c: ApiCredit): CreditAccount {
         items: [],
         status,
         createdAt: c.created_at,
+        orderNumber: c.order?.order_number ?? undefined,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Group credits by customer
+// ---------------------------------------------------------------------------
+export interface GroupedCreditAccount {
+    customerId: number
+    customer: CreditAccount['customer']
+    totalAmount: number
+    paidAmount: number
+    remainingBalance: number
+    status: CreditAccount['status']
+    credits: CreditAccount[]
+}
+
+function groupByCustomer(accounts: CreditAccount[]): GroupedCreditAccount[] {
+    const map = new Map<number, GroupedCreditAccount>()
+    const statusPriority: Record<string, number> = { paid: 0, active: 1, defaulted: 2, overdue: 3 }
+
+    for (const account of accounts) {
+        const key = account.customer.id
+        const existing = map.get(key)
+
+        if (existing) {
+            existing.totalAmount += account.totalAmount
+            existing.paidAmount += account.paidAmount
+            existing.remainingBalance += account.remainingBalance
+            existing.credits.push(account)
+            if ((statusPriority[account.status] ?? 0) > (statusPriority[existing.status] ?? 0)) {
+                existing.status = account.status
+            }
+        } else {
+            map.set(key, {
+                customerId: key,
+                customer: { ...account.customer },
+                totalAmount: account.totalAmount,
+                paidAmount: account.paidAmount,
+                remainingBalance: account.remainingBalance,
+                status: account.status,
+                credits: [account],
+            })
+        }
+    }
+
+    return Array.from(map.values())
 }
 
 // ---------------------------------------------------------------------------
@@ -253,35 +300,36 @@ export default function CreditAccountsPage() {
     const refresh = fetchAccounts
 
     const accounts = useMemo(() => rawAccounts.map(mapApiCredit), [rawAccounts])
+    const groupedAccounts = useMemo(() => groupByCustomer(accounts), [accounts])
 
     // ── Helpers ───────────────────────────────────────────────────────────
-    const toggleExpanded = (accountId: number) => {
+    const toggleExpanded = (customerId: number) => {
         setExpandedAccounts(prev => {
             const next = new Set(prev)
-            if (next.has(accountId)) next.delete(accountId)
-            else next.add(accountId)
+            if (next.has(customerId)) next.delete(customerId)
+            else next.add(customerId)
             return next
         })
     }
 
-    const filteredAccounts = useMemo(() => {
-        return accounts.filter(account => {
+    const filteredGrouped = useMemo(() => {
+        return groupedAccounts.filter(group => {
             const matchesSearch =
-                account.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                account.customer.phone?.includes(searchQuery) ||
-                account.customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesStatus = statusFilter === "all" || account.status === statusFilter
+                group.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                group.customer.phone?.includes(searchQuery) ||
+                group.customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesStatus = statusFilter === "all" || group.status === statusFilter
             return matchesSearch && matchesStatus
         })
-    }, [accounts, searchQuery, statusFilter])
+    }, [groupedAccounts, searchQuery, statusFilter])
 
     const stats = useMemo(() => {
-        const totalAccounts = accounts.length
-        const activeAccounts = accounts.filter(a => a.status === 'active').length
-        const overdueAccounts = accounts.filter(a => a.status === 'overdue').length
-        const totalOutstanding = accounts.reduce((sum, a) => sum + a.remainingBalance, 0)
+        const totalAccounts = groupedAccounts.length
+        const activeAccounts = groupedAccounts.filter(g => g.status === 'active').length
+        const overdueAccounts = groupedAccounts.filter(g => g.status === 'overdue').length
+        const totalOutstanding = groupedAccounts.reduce((sum, g) => sum + g.remainingBalance, 0)
         return { totalAccounts, activeAccounts, overdueAccounts, totalOutstanding }
-    }, [accounts])
+    }, [groupedAccounts])
 
     const handleAddPayment = (account: CreditAccount) => {
         setSelectedAccount(account)
@@ -483,7 +531,7 @@ export default function CreditAccountsPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
                     <span className="text-sm font-medium">Loading credit accounts…</span>
                 </div>
-            ) : accounts.length === 0 && !error ? (
+            ) : groupedAccounts.length === 0 && !error ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400 dark:text-[#9898b8]">
                     <CreditCard className="w-12 h-12 opacity-30" />
                     <p className="text-sm font-medium">No credit accounts found</p>
@@ -493,14 +541,14 @@ export default function CreditAccountsPage() {
                 /* Responsive Layout */
                 isDesktop ? (
                     <CreditAccountsDataTable
-                        accounts={accounts}
+                        groups={groupedAccounts}
                         searchQuery={searchQuery}
                         statusFilter={statusFilter}
                         onAddPayment={handleAddPayment}
                     />
                 ) : (
                     <CreditAccountCards
-                        accounts={filteredAccounts}
+                        groups={filteredGrouped}
                         expandedAccounts={expandedAccounts}
                         onToggleExpanded={toggleExpanded}
                         onAddPayment={handleAddPayment}
