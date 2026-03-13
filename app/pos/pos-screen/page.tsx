@@ -768,7 +768,7 @@ export default function VendoraPOS() {
           await localDb.payments.addFromTransaction({
             order_id: -Date.now(),
             customer_name: customerName,
-            amount: Math.round(pm.amount),
+            amount: Math.round(pm.amount * 100),
             method: pm.method,
             status: 'completed',
             paid_at: paidAtStr,
@@ -778,7 +778,7 @@ export default function VendoraPOS() {
         await localDb.payments.addFromTransaction({
           order_id: -Date.now(),
           customer_name: customerName,
-          amount: Math.round(isCredit ? totals.total : paid),
+          amount: Math.round((isCredit ? totals.total : paid) * 100),
           method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod,
           status: isCredit ? 'pending' : 'completed',
           paid_at: paidAtStr,
