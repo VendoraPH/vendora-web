@@ -92,7 +92,6 @@ export default function POSLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [wasCollapsedByRoute, setWasCollapsedByRoute] = useState(false)
   const [mobileSidebarMoreOpen, setMobileSidebarMoreOpen] = useState(false)
   const [userData, setUserData] = useState<{ name?: string; email?: string } | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -144,19 +143,6 @@ export default function POSLayout({ children }: { children: ReactNode }) {
     window.addEventListener("store-settings-changed", handleSettingsChanged)
     return () => window.removeEventListener("store-settings-changed", handleSettingsChanged)
   }, [])
-
-  // Auto-collapse sidebar when navigating to POS screen for maximum width
-  useEffect(() => {
-    if (pathname === "/pos/pos-screen") {
-      if (!sidebarCollapsed) {
-        setSidebarCollapsed(true)
-        setWasCollapsedByRoute(true)
-      }
-    } else if (wasCollapsedByRoute) {
-      setSidebarCollapsed(false)
-      setWasCollapsedByRoute(false)
-    }
-  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resizable sidebar state
   const [sidebarWidth, setSidebarWidth] = useState(256) // 16rem = 256px (default w-64)
