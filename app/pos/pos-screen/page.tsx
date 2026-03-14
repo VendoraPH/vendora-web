@@ -374,6 +374,9 @@ export default function VendoraPOS() {
           is_active: s.is_active
         })) as ApiStore[];
         setStores(apiStores);
+        if (!selectedStore && apiStores.length > 0) {
+          setSelectedStore(apiStores[0].id);
+        }
         console.log(`✅ Loaded ${localStores.length} stores from cache`);
       }
 
@@ -402,6 +405,9 @@ export default function VendoraPOS() {
           const storesList = extractDataArray(storesResult.value);
           const activeStores = storesList.filter((s: ApiStore) => s.is_active);
           setStores(activeStores);
+          if (!selectedStore && activeStores.length > 0) {
+            setSelectedStore(activeStores[0].id);
+          }
           await syncService.cacheStores(storesList);
         }
 
@@ -1017,13 +1023,15 @@ export default function VendoraPOS() {
             </div>
             <div className="hidden lg:flex gap-2 ml-2">
               <Pill>Cashier</Pill>
-              {stores.length > 0 && (
-                <Select value={selectedStore ? String(selectedStore) : "all"} onValueChange={(v) => setSelectedStore(v === "all" ? null : Number(v))}>
+              {stores.length === 1 && (
+                <Pill>{stores[0].name}</Pill>
+              )}
+              {stores.length > 1 && selectedStore && (
+                <Select value={String(selectedStore)} onValueChange={(v) => setSelectedStore(Number(v))}>
                   <SelectTrigger className="h-7 w-auto rounded-full bg-gray-100 border-gray-200 text-gray-900 dark:bg-white/10 dark:border-white/10 dark:text-white text-xs px-3" suppressHydrationWarning>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Stores</SelectItem>
                     {stores.map(store => (
                       <SelectItem key={store.id} value={String(store.id)}>{store.name}</SelectItem>
                     ))}
