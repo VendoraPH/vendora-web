@@ -197,16 +197,16 @@ export default function DesktopDashboard() {
       <DashboardStats stats={stats} />
 
       {/* Row 2: Charts — tighter heights */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12 xl:grid-rows-[340px_360px]">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12 xl:grid-rows-[380px_400px]">
 
-        {/* Sales Trend — wider */}
+        {/* Sales Trend */}
         <div className="md:col-span-2 xl:col-span-5 xl:row-start-1">
-          <SalesTrendChart data={salesTrend} className="h-[340px] xl:h-full" contentClassName="flex-1" />
+          <SalesTrendChart data={salesTrend} className="h-[380px] xl:h-full" contentClassName="flex-1" />
         </div>
 
         {/* Payment Methods */}
         <div className="xl:col-span-3 xl:row-start-1">
-          <PaymentMethodsChart data={paymentMethods} className="h-[340px] xl:h-full" />
+          <PaymentMethodsChart data={paymentMethods} className="h-[380px] xl:h-full" />
         </div>
 
         {/* Top Selling Products — spans both rows */}
@@ -220,7 +220,7 @@ export default function DesktopDashboard() {
 
         {/* Orders by Channel */}
         <div className="xl:col-span-5 xl:row-start-2">
-          <OrdersByChannelChart data={ordersByChannel} className="h-[360px] xl:h-full" />
+          <OrdersByChannelChart data={ordersByChannel} className="h-[400px] xl:h-full" />
         </div>
 
         {/* Inventory Health */}

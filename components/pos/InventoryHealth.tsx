@@ -40,7 +40,7 @@ export function InventoryHealth({ data, variant = "default" }: InventoryHealthPr
           <p className="text-[10px] uppercase text-gray-400 font-medium tracking-wider mt-1">Total Items</p>
         </div>
       </CardHeader>
-      <CardContent className={`${isEmbedded ? "px-0 pt-3 pb-0" : "px-5 py-6"} ${isEmbedded ? "h-[260px]" : "h-[300px]"}`}>
+      <CardContent className={`${isEmbedded ? "px-0 pt-4 pb-0" : "px-5 py-6"} h-[300px]`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <XAxis
