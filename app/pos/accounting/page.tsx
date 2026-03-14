@@ -16,6 +16,7 @@ import { ledgerService } from "@/services"
 import type { LedgerSummary, LedgerEntry } from "@/services"
 import { useOfflineData } from "@/hooks/use-offline-data"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
+import { formatCurrency } from "@/lib/utils"
 
 export default function AccountingPage() {
   const { data, isLoading: loading, isStale, lastSyncedAt, error, refresh } = useOfflineData<{
@@ -85,7 +86,7 @@ export default function AccountingPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Total Revenue</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
-                ₱{(summary?.total_income ?? 0).toLocaleString()}
+                {formatCurrency(summary?.total_income ?? 0)}
               </p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -99,7 +100,7 @@ export default function AccountingPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Total Expenses</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
-                ₱{(summary?.total_expenses ?? 0).toLocaleString()}
+                {formatCurrency(summary?.total_expenses ?? 0)}
               </p>
             </div>
             <div className="bg-red-100 dark:bg-red-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -113,7 +114,7 @@ export default function AccountingPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Net Profit</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
-                ₱{(summary?.net_balance ?? 0).toLocaleString()}
+                {formatCurrency(summary?.net_balance ?? 0)}
               </p>
             </div>
             <div className="bg-purple-100 dark:bg-purple-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -155,7 +156,7 @@ export default function AccountingPage() {
           <div className="space-y-2 mb-3 sm:mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-[#b4b4d0]">Total Expenses</span>
-              <span className="font-semibold dark:text-[#e0e0f0]">₱{(summary?.total_expenses ?? 0).toLocaleString()}</span>
+              <span className="font-semibold dark:text-[#e0e0f0]">{formatCurrency(summary?.total_expenses ?? 0)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-[#b4b4d0]">Entries</span>
@@ -211,7 +212,7 @@ export default function AccountingPage() {
                     </div>
                   </div>
                   <div className={`text-sm font-bold ${isIncome ? "text-green-600" : "text-red-600"}`}>
-                    {isIncome ? "+" : "-"}₱{Math.abs(entry.amount).toLocaleString()}
+                    {isIncome ? "+" : "-"}{formatCurrency(Math.abs(entry.amount))}
                   </div>
                 </div>
               )

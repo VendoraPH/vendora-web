@@ -4,7 +4,7 @@ import { Product, useCartStore } from "@/store/useCartStore"
 import { ShoppingCart, Star, Check } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface ProductCardProps {
@@ -130,11 +130,11 @@ export function ProductCard({ product }: ProductCardProps) {
                 {/* Price */}
                 <div className="flex items-baseline gap-1.5 mt-1 pt-1.5 border-t border-gray-100 dark:border-white/[0.06]">
                     <span className="text-sm sm:text-base font-black text-[#7C3AED] dark:text-[#7C3AED]">
-                        ₱{product.price.toFixed(2)}
+                        {formatCurrency(product.price)}
                     </span>
                     {product.originalPrice && (
                         <span className="text-[10px] sm:text-xs text-gray-400 dark:text-white/30 line-through">
-                            ₱{product.originalPrice.toFixed(2)}
+                            {formatCurrency(product.originalPrice)}
                         </span>
                     )}
                 </div>

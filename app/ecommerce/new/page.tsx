@@ -11,6 +11,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { productService, categoryService } from "@/services"
 import type { ApiProduct } from "@/services"
+import { formatCurrency } from "@/lib/utils"
 
 type UIProduct = {
     id: string
@@ -207,10 +208,10 @@ export default function NewArrivalsPage() {
                                                             <p className="text-sm text-white/80">By {item.vendor}</p>
                                                         )}
                                                         <div className="flex items-center gap-3 text-lg font-semibold">
-                                                            <span className="text-white">{"\u20B1"}{item.price.toFixed(2)}</span>
+                                                            <span className="text-white">{formatCurrency(item.price)}</span>
                                                             {item.originalPrice && (
                                                                 <span className="text-white/60 line-through text-base">
-                                                                    {"\u20B1"}{item.originalPrice.toFixed(2)}
+                                                                    {formatCurrency(item.originalPrice)}
                                                                 </span>
                                                             )}
                                                         </div>

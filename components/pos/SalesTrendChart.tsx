@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import type { SalesTrend } from "@/types/dashboard"
+import { centsToPesos } from "@/lib/utils"
 
 type SalesTrendChartProps = {
   data?: SalesTrend | null
@@ -36,9 +37,9 @@ export function SalesTrendChart({ data, className, contentClassName }: SalesTren
 
     return {
       day: dayName,
-      pos: posData,
-      online: onlineData,
-      total: posData + onlineData,
+      pos: centsToPesos(posData),
+      online: centsToPesos(onlineData),
+      total: centsToPesos(posData + onlineData),
     }
   }) : []
 

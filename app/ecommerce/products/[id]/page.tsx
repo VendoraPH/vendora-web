@@ -23,7 +23,7 @@ import {
     Check,
     Store,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 
 const resolveImageUrl = (url: string | null | undefined): string | null => {
     if (!url) return null
@@ -293,9 +293,9 @@ export default function ProductDetailPage() {
 
                         {/* Price */}
                         <div className="flex items-center gap-4">
-                            <span className="text-4xl font-black text-gray-900">{"\u20B1"}{price.toFixed(2)}</span>
+                            <span className="text-4xl font-black text-gray-900">{formatCurrency(price)}</span>
                             {originalPrice && (
-                                <span className="text-2xl text-gray-400 line-through">{"\u20B1"}{originalPrice.toFixed(2)}</span>
+                                <span className="text-2xl text-gray-400 line-through">{formatCurrency(originalPrice)}</span>
                             )}
                         </div>
 
@@ -417,7 +417,7 @@ export default function ProductDetailPage() {
                                     {[
                                         ["SKU", product.sku],
                                         ["Category", product.category?.name],
-                                        ["Price", `\u20B1${price.toFixed(2)}`],
+                                        ["Price", formatCurrency(price)],
                                         ["Currency", product.currency],
                                         ["Stock", String(product.stock)],
                                         product.unit ? ["Unit", product.unit] : null,
