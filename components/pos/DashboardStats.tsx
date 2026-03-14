@@ -19,7 +19,7 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
       {stats.map((stat, index) => {
         const Icon = stat.icon
         // Determine color based on change type or index if we wanted to vary it, 
