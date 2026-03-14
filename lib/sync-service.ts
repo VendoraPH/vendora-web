@@ -200,9 +200,11 @@ export async function syncSingleTransaction(uuid: string): Promise<void> {
     const orderPayload: Record<string, any> = {
       ordered_at: transaction.ordered_at,
       status: transaction.status,
+      total: Math.round(transaction.total),
       items: transaction.items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity,
+        price: Math.round(item.price),
       }))
     };
 
