@@ -1,9 +1,9 @@
-﻿"use client"
+"use client"
 
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2 } from "lucide-react"
+import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2, Truck } from "lucide-react"
 
 const PesoSign = ({ className }: { className?: string }) => (
   <span className={`font-bold flex items-center justify-center ${className ?? ''}`}>₱</span>
@@ -17,7 +17,6 @@ import { InventoryHealth } from "@/components/pos/InventoryHealth"
 import { LowStockAlerts } from "@/components/pos/LowStockAlerts"
 import { PendingOrders } from "@/components/pos/PendingOrders"
 import { RecentActivity } from "@/components/pos/RecentActivity"
-import { QuickActions } from "@/components/pos/QuickActions"
 import { CashVsCreditChart } from "@/components/pos/CashVsCreditChart"
 import { AddProductModal } from "@/components/pos/AddProductModal"
 import { Card, CardContent } from "@/components/ui/card"
@@ -154,18 +153,21 @@ export default function DesktopDashboard() {
   }
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="space-y-3 pb-6">
       {/* Stale data indicator for offline/cached data */}
       <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
-      {/* Desktop Header */}
-      <div className="hidden sm:flex sm:flex-col gap-3 bg-white dark:bg-card p-4 sm:p-6 rounded-lg border border-gray-200 dark:border-border xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-[#b4b4d0]">Welcome back</p>
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-1">{displayName || "Your Store"}</h1>
+
+      {/* Desktop Header — compact */}
+      <div className="hidden sm:flex sm:flex-col gap-2 bg-white dark:bg-card p-4 rounded-lg border border-gray-200 dark:border-border xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="text-xs text-gray-500 dark:text-[#b4b4d0]">Welcome back</p>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{displayName || "Your Store"}</h1>
+          </div>
         </div>
-        <div className="hidden w-full flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
+        <div className="hidden w-full flex-col gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-full sm:w-[140px]" suppressHydrationWarning>
+            <SelectTrigger className="w-full sm:w-[140px] h-9" suppressHydrationWarning>
               <SelectValue placeholder="Select period" />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +176,7 @@ export default function DesktopDashboard() {
               <SelectItem value="30days">Last 30 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button asChild className="w-full sm:w-auto bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white">
+          <Button asChild className="w-full sm:w-auto h-9 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white">
             <Link href="/pos/pos-screen">
               <ShoppingCart className="mr-2 h-4 w-4" />
               Open POS
@@ -182,7 +184,7 @@ export default function DesktopDashboard() {
           </Button>
           <Button
             variant="outline"
-            className="w-full sm:w-auto border-gray-300 dark:border-border"
+            className="w-full sm:w-auto h-9 border-gray-300 dark:border-border"
             onClick={() => setIsAddProductOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -194,21 +196,20 @@ export default function DesktopDashboard() {
       {/* Row 1: Key Metrics */}
       <DashboardStats stats={stats} />
 
-      {/* Row 2: Sales Overview + Activity Metrics + Distribution */}
-      {/* md: 2-col grid, lg: full 12-col layout */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12 xl:grid-rows-[400px_450px]">
+      {/* Row 2: Charts — tighter heights */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12 xl:grid-rows-[340px_360px]">
 
-        {/* Sales Trend */}
+        {/* Sales Trend — wider */}
         <div className="md:col-span-2 xl:col-span-5 xl:row-start-1">
-          <SalesTrendChart data={salesTrend} className="h-[400px] xl:h-full" contentClassName="flex-1" />
+          <SalesTrendChart data={salesTrend} className="h-[340px] xl:h-full" contentClassName="flex-1" />
         </div>
 
         {/* Payment Methods */}
         <div className="xl:col-span-3 xl:row-start-1">
-          <PaymentMethodsChart data={paymentMethods} className="h-[400px] xl:h-full" />
+          <PaymentMethodsChart data={paymentMethods} className="h-[340px] xl:h-full" />
         </div>
 
-        {/* Top Selling Products */}
+        {/* Top Selling Products — spans both rows */}
         <div className="xl:col-span-4 xl:row-span-2 h-full">
           <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
             <CardContent className="p-4 h-full overflow-y-auto">
@@ -219,7 +220,7 @@ export default function DesktopDashboard() {
 
         {/* Orders by Channel */}
         <div className="xl:col-span-5 xl:row-start-2">
-          <OrdersByChannelChart data={ordersByChannel} className="h-[450px] xl:h-full" />
+          <OrdersByChannelChart data={ordersByChannel} className="h-[360px] xl:h-full" />
         </div>
 
         {/* Inventory Health */}
@@ -233,35 +234,66 @@ export default function DesktopDashboard() {
 
       </div>
 
-      {/* Row 3: Actionable Items + Activity Feed */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        {/* Left: Alerts, Orders & Cash vs Credit */}
-        <div className="xl:col-span-9 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
-            <CardContent className="p-5">
-              <LowStockAlerts variant="embedded" />
-            </CardContent>
-          </Card>
-          <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
-            <CardContent className="p-5">
-              <PendingOrders variant="embedded" />
-            </CardContent>
-          </Card>
-          <div className="md:col-span-2 xl:col-span-1">
-            <CashVsCreditChart data={cashVsCredit} className="h-full dark:bg-card dark:border-border" />
-          </div>
-        </div>
+      {/* Row 3: Actionable Items — balanced 4-column layout */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="border-gray-200 dark:border-border dark:bg-card">
+          <CardContent className="p-4">
+            <LowStockAlerts variant="embedded" />
+          </CardContent>
+        </Card>
+        <Card className="border-gray-200 dark:border-border dark:bg-card">
+          <CardContent className="p-4">
+            <PendingOrders variant="embedded" />
+          </CardContent>
+        </Card>
+        <CashVsCreditChart data={cashVsCredit} className="dark:bg-card dark:border-border" />
+        <Card className="border-gray-200 dark:border-border dark:bg-card">
+          <CardContent className="p-4">
+            <RecentActivity data={recentActivity} variant="embedded" />
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Right: Recent Activity + Quick Actions */}
-        <div className="xl:col-span-3">
-          <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
-            <CardContent className="p-5">
-              <RecentActivity data={recentActivity} variant="embedded" />
-              <div className="h-px bg-gray-200 dark:bg-border my-4" />
-              <QuickActions variant="embedded" onAddProduct={() => setIsAddProductOpen(true)} />
-            </CardContent>
-          </Card>
-        </div>
+      {/* Row 4: Quick Actions — horizontal strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Button
+          asChild
+          variant="outline"
+          className="h-12 justify-start gap-3 text-purple-600 hover:bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-800/40 dark:hover:bg-purple-950/40"
+        >
+          <Link href="/pos/pos-screen">
+            <ShoppingCart className="w-5 h-5 shrink-0" />
+            <span className="font-medium text-sm dark:text-[#e0e0f0]">Start POS Sale</span>
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-12 justify-start gap-3 text-blue-600 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-800/40 dark:hover:bg-blue-950/40"
+          onClick={() => setIsAddProductOpen(true)}
+        >
+          <Plus className="w-5 h-5 shrink-0" />
+          <span className="font-medium text-sm dark:text-[#e0e0f0]">Add Product</span>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-12 justify-start gap-3 text-orange-600 hover:bg-orange-50 border-orange-200 dark:text-orange-400 dark:border-orange-800/40 dark:hover:bg-orange-950/40"
+        >
+          <Link href="/pos/products">
+            <Package className="w-5 h-5 shrink-0" />
+            <span className="font-medium text-sm dark:text-[#e0e0f0]">Adjust Stock</span>
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-12 justify-start gap-3 text-green-600 hover:bg-green-50 border-green-200 dark:text-green-400 dark:border-green-800/40 dark:hover:bg-green-950/40"
+        >
+          <Link href="/pos/orders">
+            <Truck className="w-5 h-5 shrink-0" />
+            <span className="font-medium text-sm dark:text-[#e0e0f0]">Fulfill Orders</span>
+          </Link>
+        </Button>
       </div>
 
       {/* Add Product Modal - accessible from header button & Quick Actions */}
@@ -272,6 +304,3 @@ export default function DesktopDashboard() {
     </div>
   )
 }
-
-
-
