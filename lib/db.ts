@@ -326,6 +326,57 @@ export class VendoraPOSDB extends Dexie {
         });
       });
     });
+
+    // v4: Fix monetary values — old POS code stored pesos instead of cents.
+    // Synced orders/payments are deleted (they re-download from API in cents).
+    // Unsynced local orders/payments get pesos→cents conversion (* 100).
+    this.version(4).stores({
+      products: 'id, _localId, barcode, sku, name, category_id, is_active, _status, last_synced',
+      categories: 'id, name, last_synced',
+      customers: 'id, _localId, name, phone, status, _status, last_synced',
+      stores: 'id, name, is_active, last_synced',
+      orders: 'id, _localId, customer_id, status, _status, ordered_at, _lastModified',
+      payments: 'id, _localId, order_id, method, _status, _lastModified',
+      pendingUploads: '++id, entityType, entityLocalId, status, createdAt',
+      transactions: 'uuid, order_id, customer_id, synced, created_at, status',
+      syncQueue: '++id, uuid, type, status, priority, created_at',
+      syncLogs: '++id, type, status, started_at',
+      cachedCredentials: 'email, cachedAt',
+      cachedData: 'key, lastSyncedAt'
+    }).upgrade(tx => {
+      // Delete synced orders — they'll re-download from API with correct cents values.
+      // Convert unsynced local orders from pesos to cents.
+      return tx.table('orders').toCollection().modify(function (order, ref) {
+        if (order._status === 'synced') {
+          delete ref.value;
+        } else {
+          // Unsynced local order — convert pesos to cents
+          const monetaryFields = ['total', 'subtotal', 'tax', 'discount', 'delivery_fee'] as const;
+          for (const field of monetaryFields) {
+            if (order[field] && order[field] > 0) {
+              order[field] = Math.round(order[field] * 100);
+            }
+          }
+          if (Array.isArray(order.items)) {
+            for (const item of order.items) {
+              if (item.price && item.price > 0) {
+                item.price = Math.round(item.price * 100);
+              }
+            }
+          }
+        }
+      }).then(() => {
+        return tx.table('payments').toCollection().modify(function (payment, ref) {
+          if (payment._status === 'synced') {
+            delete ref.value;
+          } else {
+            if (payment.amount && payment.amount > 0) {
+              payment.amount = Math.round(payment.amount * 100);
+            }
+          }
+        });
+      });
+    });
   }
 }
 
