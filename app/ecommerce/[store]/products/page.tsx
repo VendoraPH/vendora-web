@@ -391,6 +391,7 @@ export default function StoreProductsPage({ params }: { params: Promise<{ store:
             {/* ── Store Identity Banner ──────────────────────────────── */}
             <StoreBanner
                 name={storeInfo?.name}
+                tagline={storeInfo?.settings?.tagline}
                 address={storeInfo?.address}
                 phone={storeInfo?.phone}
             />

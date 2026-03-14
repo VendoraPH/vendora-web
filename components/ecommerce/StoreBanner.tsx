@@ -4,11 +4,12 @@ import { Store, MapPin, Clock, Phone, Star } from "lucide-react"
 
 interface StoreBannerProps {
     name?: string
+    tagline?: string
     address?: string
     phone?: string
 }
 
-export function StoreBanner({ name, address, phone }: StoreBannerProps) {
+export function StoreBanner({ name, tagline, address, phone }: StoreBannerProps) {
     return (
         <section className="relative w-full overflow-hidden bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-[#110228] dark:via-[#1a0440] dark:to-[#110228]">
             {/* Decorative orbs */}
@@ -28,7 +29,7 @@ export function StoreBanner({ name, address, phone }: StoreBannerProps) {
                             {name || "Luna Street Mart"}
                         </h1>
                         <p className="text-base sm:text-lg font-medium text-gray-500 dark:text-white/50">
-                            Your Trusted Neighborhood Store
+                            {tagline || "Your Trusted Neighborhood Store"}
                         </p>
                     </div>
 
