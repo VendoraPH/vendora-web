@@ -49,6 +49,9 @@ export default function EcommercePage() {
   const [slugError, setSlugError] = useState<string | null>(null)
   const [storeName, setStoreName] = useState("")
   const [storeTagline, setStoreTagline] = useState("")
+  const [storeAddress, setStoreAddress] = useState("")
+  const [storePhone, setStorePhone] = useState("")
+  const [storeHours, setStoreHours] = useState("")
   const [designSaving, setDesignSaving] = useState(false)
   const [foodMenuEnabled, setFoodMenuEnabled] = useState(true)
 
@@ -65,6 +68,9 @@ export default function EcommercePage() {
         setSlugInput(firstStore.slug || "")
         setStoreName(firstStore.name || "")
         setStoreTagline((firstStore as any).settings?.tagline || "")
+        setStoreAddress(firstStore.address || "")
+        setStorePhone(firstStore.phone || "")
+        setStoreHours((firstStore as any).settings?.operating_hours || "")
         setFoodMenuEnabled(firstStore.settings?.food_menu_enabled ?? true)
         try { setProducts(await storeService.getProducts(firstStore.id, { per_page: 500 })) } catch {}
         try {
@@ -131,11 +137,14 @@ export default function EcommercePage() {
     if (!store) return
     setDesignSaving(true)
     try {
+      const updatedSettings = { ...(store as any).settings, tagline: storeTagline, operating_hours: storeHours }
       await storeService.update(store.id, {
         name: storeName,
-        settings: { ...(store as any).settings, tagline: storeTagline },
+        address: storeAddress,
+        phone: storePhone,
+        settings: updatedSettings,
       } as any)
-      setStore({ ...store, name: storeName, settings: { ...(store as any).settings, tagline: storeTagline } } as any)
+      setStore({ ...store, name: storeName, address: storeAddress, phone: storePhone, settings: updatedSettings } as any)
       Swal.fire({ icon: "success", title: "Design Saved", text: "Your storefront design has been updated.", timer: 2000, showConfirmButton: false })
     } catch (err: any) {
       Swal.fire({ icon: "error", title: "Error", text: err?.response?.data?.message || "Failed to save design settings." })
@@ -436,6 +445,18 @@ export default function EcommercePage() {
             <div>
               <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Store Tagline</label>
               <Input value={storeTagline} onChange={(e) => setStoreTagline(e.target.value)} placeholder="Your trusted neighborhood store" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Address</label>
+              <Input value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} placeholder="123 Rizal Ave, Brgy. San Isidro, Quezon City" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Phone</label>
+              <Input value={storePhone} onChange={(e) => setStorePhone(e.target.value)} placeholder="+63 912 345 6789" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Operating Hours</label>
+              <Input value={storeHours} onChange={(e) => setStoreHours(e.target.value)} placeholder="8:00 AM - 9:00 PM" />
             </div>
             <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleDesignSave} disabled={designSaving}>
               {designSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}

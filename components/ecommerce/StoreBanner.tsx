@@ -1,15 +1,16 @@
 "use client"
 
-import { Store, MapPin, Clock, Phone, Star } from "lucide-react"
+import { Store, MapPin, Clock, Phone } from "lucide-react"
 
 interface StoreBannerProps {
     name?: string
     tagline?: string
     address?: string
     phone?: string
+    operatingHours?: string
 }
 
-export function StoreBanner({ name, tagline, address, phone }: StoreBannerProps) {
+export function StoreBanner({ name, tagline, address, phone, operatingHours }: StoreBannerProps) {
     return (
         <section className="relative w-full overflow-hidden bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-[#110228] dark:via-[#1a0440] dark:to-[#110228]">
             {/* Decorative orbs */}
@@ -34,30 +35,30 @@ export function StoreBanner({ name, tagline, address, phone }: StoreBannerProps)
                     </div>
 
                     {/* Address */}
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-white/60">
-                        <MapPin className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED] shrink-0" />
-                        <span className="text-sm sm:text-base">
-                            {address || "123 Rizal Ave, Brgy. San Isidro, Quezon City"}
-                        </span>
-                    </div>
+                    {address && (
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-white/60">
+                            <MapPin className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED] shrink-0" />
+                            <span className="text-sm sm:text-base">{address}</span>
+                        </div>
+                    )}
 
                     {/* Info Row */}
                     <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 pt-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/45">
-                            <Clock className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED]" />
-                            <span className="font-medium">8:00 AM - 9:00 PM</span>
-                        </div>
-                        <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/45">
-                            <Phone className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED]" />
-                            <span className="font-medium">{phone || "+63 912 345 6789"}</span>
-                        </div>
-                        <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
-                        <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/45">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="font-semibold text-gray-700 dark:text-white/70">4.8</span>
-                            <span className="font-medium">(256 reviews)</span>
-                        </div>
+                        {operatingHours && (
+                            <>
+                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/45">
+                                    <Clock className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED]" />
+                                    <span className="font-medium">{operatingHours}</span>
+                                </div>
+                                {phone && <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />}
+                            </>
+                        )}
+                        {phone && (
+                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/45">
+                                <Phone className="w-4 h-4 text-[#7C3AED] dark:text-[#7C3AED]" />
+                                <span className="font-medium">{phone}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

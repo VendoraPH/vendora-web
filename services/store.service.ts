@@ -31,6 +31,7 @@ export interface StorePayload {
     name: string
     slug?: string
     address?: string
+    phone?: string
     is_active?: boolean
     settings?: Record<string, any>
 }
