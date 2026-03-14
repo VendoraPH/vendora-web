@@ -110,7 +110,7 @@ export default function DesktopDashboard() {
     {
       title: "Total Credit",
       value: formatCurrency(kpis.total_credit),
-      change: "Unpaid credit",
+      change: "Outstanding credit",
       changeType: "label" as const,
       icon: CreditCard,
     },
