@@ -13,6 +13,7 @@ import { categoryService } from "@/services"
 import type { ApiProduct, ApiCategory } from "@/services"
 import { tokenManager } from "@/lib/axios-client"
 import { API_CONFIG } from "@/config/api.config"
+import { formatCurrency } from "@/lib/utils"
 import { db } from "@/lib/db"
 import { syncService } from "@/lib/sync-service"
 import { localDb } from "@/lib/local-first-service"
@@ -1140,7 +1141,7 @@ function DesktopInventoryLayout() {
                     {visibleColumns.price && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          ₱{item.price.toLocaleString()}
+                          {formatCurrency(item.price)}
                         </div>
                       </td>
                     )}
@@ -1283,7 +1284,7 @@ function DesktopInventoryLayout() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 dark:bg-[#13132a] p-3 rounded-lg">
                   <p className="text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">Price</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white">₱{item.price.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(item.price)}</p>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-[#13132a] p-3 rounded-lg">

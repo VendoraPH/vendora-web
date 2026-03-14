@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingBag, Clock, RefreshCw } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 import { dashboardService } from "@/services/dashboard.service"
 import type { PendingOrder } from "@/types/dashboard"
 
@@ -76,7 +77,7 @@ export function PendingOrders({ variant = "default" }: PendingOrdersProps) {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
-                    ₱ {order.total.toLocaleString()}
+                    {formatCurrency(order.total)}
                   </p>
                   <Button
                     size="sm"

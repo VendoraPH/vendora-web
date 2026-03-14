@@ -16,6 +16,7 @@ import { dashboardService } from "@/services"
 import type { DashboardKPIs, TopProducts } from "@/types/dashboard"
 import { useOfflineData } from "@/hooks/use-offline-data"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
+import { formatCurrency } from "@/lib/utils"
 
 export default function ReportsPage() {
   const { data, isLoading: loading, isStale, lastSyncedAt, error, refresh } = useOfflineData<{
@@ -78,7 +79,7 @@ export default function ReportsPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Total Sales</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
-                ₱{(kpis?.total_sales ?? 0).toLocaleString()}
+                {formatCurrency(kpis?.total_sales ?? 0)}
               </p>
             </div>
             <div className="bg-purple-100 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -120,7 +121,7 @@ export default function ReportsPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Avg. Order Value</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
-                ₱{(kpis?.average_order_value ?? 0).toLocaleString()}
+                {formatCurrency(kpis?.average_order_value ?? 0)}
               </p>
             </div>
             <div className="bg-orange-100 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -170,7 +171,7 @@ export default function ReportsPage() {
                   <span className="text-sm font-medium text-gray-900 dark:text-white">{product.name}</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">₱{product.revenue.toLocaleString()}</div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(product.revenue)}</div>
                   <div className="text-xs text-gray-600 dark:text-[#b4b4d0]">{product.units_sold} units</div>
                 </div>
               </div>

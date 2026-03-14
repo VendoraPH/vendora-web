@@ -15,6 +15,7 @@ import {
   Calculator,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatCurrency } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -411,7 +412,7 @@ export default function LedgerPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Total Income</p>
               <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">
-                ₱{(summary?.total_income ?? 0).toLocaleString()}
+                {formatCurrency(summary?.total_income ?? 0)}
               </p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -425,7 +426,7 @@ export default function LedgerPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Total Expenses</p>
               <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">
-                ₱{(summary?.total_expenses ?? 0).toLocaleString()}
+                {formatCurrency(summary?.total_expenses ?? 0)}
               </p>
             </div>
             <div className="bg-red-100 dark:bg-red-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -439,7 +440,7 @@ export default function LedgerPage() {
             <div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Net Balance</p>
               <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">
-                ₱{(summary?.net_balance ?? 0).toLocaleString()}
+                {formatCurrency(summary?.net_balance ?? 0)}
               </p>
             </div>
             <div className="bg-purple-100 dark:bg-purple-900/30 p-2 sm:p-3 rounded-lg hidden sm:block">
@@ -577,7 +578,7 @@ export default function LedgerPage() {
                           isIncome ? "text-green-600" : "text-red-600"
                         }`}
                       >
-                        {isIncome ? "+" : "-"}₱{Math.abs(entry.amount).toLocaleString()}
+                        {isIncome ? "+" : "-"}{formatCurrency(Math.abs(entry.amount))}
                       </td>
                       <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0]">
                         {entry.reference || "-"}
@@ -620,7 +621,7 @@ export default function LedgerPage() {
                       isIncome ? "text-green-600" : "text-red-600"
                     }`}
                   >
-                    {isIncome ? "+" : "-"}₱{Math.abs(entry.amount).toLocaleString()}
+                    {isIncome ? "+" : "-"}{formatCurrency(Math.abs(entry.amount))}
                   </span>
                 </div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{entry.description}</p>

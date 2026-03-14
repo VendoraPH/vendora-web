@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import api from "@/lib/api-client"
+import { formatCurrency } from "@/lib/utils"
 import { posOrderEndpoints } from "./api-endpoints"
 import { type LocalOrder } from "@/lib/db"
 import { useLocalOrders } from "@/hooks/use-local-data"
@@ -421,7 +422,7 @@ function DesktopOrdersLayout() {
                       <div className="text-sm text-gray-600 dark:text-[#b4b4d0]">{order.items} items</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">₱{order.total.toFixed(2)}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(order.total)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {order.status === "completed" && (
@@ -497,7 +498,7 @@ function DesktopOrdersLayout() {
               </div>
               <div className="col-span-2">
                 <span className="text-gray-500 dark:text-[#b4b4d0]">Total:</span>
-                <span className="text-gray-900 dark:text-white font-medium ml-1">₱{order.total.toFixed(2)}</span>
+                <span className="text-gray-900 dark:text-white font-medium ml-1">{formatCurrency(order.total)}</span>
               </div>
             </div>
             <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
@@ -595,9 +596,9 @@ function DesktopOrdersLayout() {
                           <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                             <td className="px-4 py-3 text-sm text-white">{item.product?.name || item.name || "Product"}</td>
                             <td className="px-4 py-3 text-sm text-white/80 text-center">{item.quantity}</td>
-                            <td className="px-4 py-3 text-sm text-white/80 text-right">₱{Number(item.price || 0).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-sm text-white/80 text-right">{formatCurrency(Number(item.price || 0))}</td>
                             <td className="px-4 py-3 text-sm text-white font-medium text-right">
-                              ₱{(Number(item.quantity) * Number(item.price || 0)).toFixed(2)}
+                              {formatCurrency(Number(item.quantity) * Number(item.price || 0))}
                             </td>
                           </tr>
                         ))}
@@ -610,23 +611,23 @@ function DesktopOrdersLayout() {
                     <div className="w-80 space-y-3">
                       <div className="flex justify-between text-sm py-2 border-b border-white/10">
                         <span className="text-white/60">Subtotal</span>
-                        <span className="text-white font-medium">₱{Number(orderDetails.subtotal || orderDetails.total || 0).toFixed(2)}</span>
+                        <span className="text-white font-medium">{formatCurrency(Number(orderDetails.subtotal || orderDetails.total || 0))}</span>
                       </div>
                       {orderDetails.tax > 0 && (
                         <div className="flex justify-between text-sm py-2 border-b border-white/10">
                           <span className="text-white/60">Tax (12%)</span>
-                          <span className="text-white font-medium">₱{Number(orderDetails.tax || 0).toFixed(2)}</span>
+                          <span className="text-white font-medium">{formatCurrency(Number(orderDetails.tax || 0))}</span>
                         </div>
                       )}
                       {orderDetails.delivery_fee > 0 && (
                         <div className="flex justify-between text-sm py-2 border-b border-white/10">
                           <span className="text-white/60">Delivery Fee</span>
-                          <span className="text-white font-medium">₱{Number(orderDetails.delivery_fee || 0).toFixed(2)}</span>
+                          <span className="text-white font-medium">{formatCurrency(Number(orderDetails.delivery_fee || 0))}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center bg-purple-500/20 rounded-lg px-4 py-3 border border-purple-500/30">
                         <span className="text-white font-semibold text-lg">Total Amount</span>
-                        <span className="text-emerald-400 font-bold text-2xl">₱{Number(orderDetails.total || 0).toFixed(2)}</span>
+                        <span className="text-emerald-400 font-bold text-2xl">{formatCurrency(Number(orderDetails.total || 0))}</span>
                       </div>
                     </div>
                   </div>
@@ -739,8 +740,8 @@ function DesktopOrdersLayout() {
                         <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <td style={{ padding: '10px 8px', fontSize: '11px', color: '#000' }}>{item.product?.name || item.name || "Product"}</td>
                           <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'center', color: '#000', fontWeight: '600' }}>{item.quantity}</td>
-                          <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', color: '#000' }}>₱{Number(item.price || 0).toFixed(2)}</td>
-                          <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', fontWeight: '600', color: '#000' }}>₱{(Number(item.quantity) * Number(item.price || 0)).toFixed(2)}</td>
+                          <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', color: '#000' }}>{formatCurrency(Number(item.price || 0))}</td>
+                          <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', fontWeight: '600', color: '#000' }}>{formatCurrency(Number(item.quantity) * Number(item.price || 0))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -751,23 +752,23 @@ function DesktopOrdersLayout() {
                     <div style={{ width: '280px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d1d5db' }}>
                         <span style={{ fontSize: '11px', color: '#333', fontWeight: '500' }}>Subtotal</span>
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>₱{Number(orderDetails.subtotal || orderDetails.total || 0).toFixed(2)}</span>
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>{formatCurrency(Number(orderDetails.subtotal || orderDetails.total || 0))}</span>
                       </div>
                       {orderDetails.tax > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d1d5db' }}>
                           <span style={{ fontSize: '11px', color: '#333', fontWeight: '500' }}>Tax (12%)</span>
-                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>₱{Number(orderDetails.tax || 0).toFixed(2)}</span>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>{formatCurrency(Number(orderDetails.tax || 0))}</span>
                         </div>
                       )}
                       {orderDetails.delivery_fee > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d1d5db' }}>
                           <span style={{ fontSize: '11px', color: '#333', fontWeight: '500' }}>Delivery Fee</span>
-                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>₱{Number(orderDetails.delivery_fee || 0).toFixed(2)}</span>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#000' }}>{formatCurrency(Number(orderDetails.delivery_fee || 0))}</span>
                         </div>
                       )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 15px', background: '#f3f4f6', borderRadius: '6px', marginTop: '10px', border: '2px solid #000' }}>
                         <span style={{ fontSize: '14px', fontWeight: '700', color: '#000' }}>Total Amount</span>
-                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>₱{Number(orderDetails.total || 0).toFixed(2)}</span>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>{formatCurrency(Number(orderDetails.total || 0))}</span>
                       </div>
                     </div>
                   </div>

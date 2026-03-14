@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { formatCurrency } from "@/lib/utils"
 import { Slider } from "@/components/ui/slider"
 
 
@@ -621,9 +622,9 @@ export default function ProductsPage() {
                                                         <div className="flex-1" />
 
                                                         <div className="flex items-baseline gap-1.5">
-                                                            <span className="text-lg font-black text-[#7C3AED]">{"\u20B1"}{product.price.toFixed(2)}</span>
+                                                            <span className="text-lg font-black text-[#7C3AED]">{formatCurrency(product.price)}</span>
                                                             {product.originalPrice && (
-                                                                <span className="text-xs text-white/25 line-through">{"\u20B1"}{product.originalPrice.toFixed(2)}</span>
+                                                                <span className="text-xs text-white/25 line-through">{formatCurrency(product.originalPrice)}</span>
                                                             )}
                                                         </div>
 
