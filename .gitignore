@@ -63,3 +63,6 @@ docs/api/VENDORA_API_ENDPOINTS.md
 
 # Local workflow guide
 WORKFLOW.md
+
+# GitHub Actions (local only)
+.github/

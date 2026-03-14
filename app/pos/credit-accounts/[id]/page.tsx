@@ -31,20 +31,25 @@ import {
     History,
     AlertCircle,
     Banknote,
-    Plus,
     CheckCircle2,
+    Clock,
+    XCircle,
     Loader2,
     BookOpen,
     TrendingDown,
     TrendingUp,
     ShoppingBag,
+    ChevronDown,
+    ChevronRight,
 } from "lucide-react"
 import { creditService, orderService } from "@/services"
 import type { ApiCredit } from "@/services"
 import Swal from "sweetalert2"
 import { getOnlineStatus } from "@/lib/sync-service"
 
-// Types for UI display
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 interface PurchasedItem {
     id: number
     name: string
@@ -53,141 +58,117 @@ interface PurchasedItem {
     total: number
 }
 
-interface CreditAccount {
+interface CreditTransaction {
     id: number
-    customer: {
-        id: number
-        name: string
-        phone?: string
-        email?: string
-        address?: string
-        memberSince?: string
-    }
-    totalAmount: number
+    amount: number
     paidAmount: number
-    remainingBalance: number
-    creditLimit?: number
-    dueDate?: string
+    balance: number
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
+    dueDate?: string
+    orderNumber?: string
     notes?: string
     items: PurchasedItem[]
-    orderNumber?: string
+}
+
+interface CustomerInfo {
+    id: number
+    name: string
+    phone?: string
+    email?: string
+    address?: string
 }
 
 // ---------------------------------------------------------------------------
-// Ledger entry type
+// Helpers
 // ---------------------------------------------------------------------------
-interface LedgerEntry {
-    date: string
-    description: string
-    debit: number | null
-    credit: number | null
-    balance: number
-}
-
-function buildLedgerEntries(account: CreditAccount): LedgerEntry[] {
-    const entries: LedgerEntry[] = []
-
-    // Opening debit: credit issued
-    entries.push({
-        date: account.createdAt,
-        description: "Credit Issued",
-        debit: account.totalAmount,
-        credit: null,
-        balance: account.totalAmount,
-    })
-
-    // Credit: total payments received
-    if (account.paidAmount > 0) {
-        entries.push({
-            date: account.notes ? account.createdAt : new Date().toISOString(),
-            description: "Payment Received",
-            debit: null,
-            credit: account.paidAmount,
-            balance: account.remainingBalance,
-        })
-    }
-
-    return entries
-}
-
-function mapApiCredit(c: ApiCredit): CreditAccount {
-    const status: CreditAccount["status"] =
-        c.status === "active" || c.status === "overdue" || c.status === "paid" || c.status === "defaulted"
-            ? c.status
-            : "active"
-
+function resolveCustomerInfo(c: ApiCredit): CustomerInfo {
     const cc = c.credit_customer
-    const fullName = c.customer?.name?.trim()
+    const name = c.customer?.name?.trim()
         ?? (cc ? [cc.first_name, cc.middle_name, cc.last_name].filter(Boolean).join(" ") : null)
         ?? `Customer #${c.customer_id}`
+    return {
+        id: c.customer?.id ?? c.customer_id,
+        name,
+        phone: c.customer?.phone ?? cc?.contact_number ?? undefined,
+        email: c.customer?.email ?? undefined,
+        address: c.customer?.address ?? cc?.address ?? undefined,
+    }
+}
 
-    const phone = c.customer?.phone ?? cc?.contact_number ?? undefined
-    const address = c.customer?.address ?? cc?.address ?? undefined
-
-    // Map order items if present
-    const items: PurchasedItem[] = (c.order?.items ?? []).map((item: any, idx: number) => {
+function mapItems(c: ApiCredit): PurchasedItem[] {
+    return (c.order?.items ?? []).map((item: any, idx: number) => {
         const name =
             item.product_name ??
             item.product?.name ??
             item.name ??
             `Product #${item.product_id ?? idx + 1}`
 
-        // Prefer catalog price (already in pesos). Fall back to stored item price.
-        // item.price from orders API is in centavos → divide by 100.
         const catalogPrice = item.product?.price ?? item.unit_price ?? item.sale_price ?? null
         const storedPrice = item.price != null ? Number(item.price) / 100 : 0
         const unitPrice = catalogPrice != null ? Number(catalogPrice) : storedPrice
-
         const qty = Number(item.quantity ?? item.qty) || 1
-        // item.total from orders API is also in centavos
         const lineTotal = item.total != null ? Number(item.total) / 100 : unitPrice * qty
 
-        return {
-            id: item.id ?? idx,
-            name,
-            quantity: qty,
-            unitPrice,
-            total: lineTotal,
-        }
+        return { id: item.id ?? idx, name, quantity: qty, unitPrice, total: lineTotal }
     })
+}
 
+function mapCreditToTransaction(c: ApiCredit): CreditTransaction {
+    const status: CreditTransaction['status'] =
+        c.status === "active" || c.status === "overdue" || c.status === "paid" || c.status === "defaulted"
+            ? c.status : "active"
     return {
         id: c.id,
-        customer: {
-            id: c.customer?.id ?? c.customer_id,
-            name: fullName,
-            phone,
-            email: c.customer?.email ?? undefined,
-            address,
-        },
-        totalAmount: Number(c.amount) / 100 || 0,
+        amount: Number(c.amount) / 100 || 0,
         paidAmount: Number(c.paid_amount) / 100 || 0,
-        remainingBalance: Number(c.balance) / 100 || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
-        dueDate: c.due_date ?? undefined,
+        balance: Number(c.balance) / 100 || 0,
         status,
         createdAt: c.created_at,
-        notes: c.notes ?? undefined,
-        items,
+        dueDate: c.due_date ?? undefined,
         orderNumber: c.order?.order_number ?? undefined,
+        notes: c.notes ?? undefined,
+        items: mapItems(c),
     }
 }
 
+// ---------------------------------------------------------------------------
+// Status badge
+// ---------------------------------------------------------------------------
+function StatusBadge({ status }: { status: CreditTransaction['status'] }) {
+    const variants = {
+        active: { cls: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300", icon: Clock, text: "Active" },
+        paid: { cls: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300", icon: CheckCircle2, text: "Paid" },
+        overdue: { cls: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300", icon: AlertCircle, text: "Overdue" },
+        defaulted: { cls: "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-[#b4b4d0]", icon: XCircle, text: "Defaulted" },
+    }
+    const { cls, icon: Icon, text } = variants[status]
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${cls}`}>
+            <Icon className="w-3 h-3" />
+            {text}
+        </span>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function CreditAccountDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter()
     const resolvedParams = use(params)
-    const accountId = resolvedParams.id
+    const customerId = resolvedParams.id
 
     const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false)
     const [paymentAmount, setPaymentAmount] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
-    const [paymentNotes, setPaymentNotes] = useState("")
+    const [selectedCreditId, setSelectedCreditId] = useState<number | null>(null)
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
-    const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'payments'>('overview')
+    const [activeTab, setActiveTab] = useState<'transactions' | 'ledger'>('transactions')
+    const [expandedTxn, setExpandedTxn] = useState<Set<number>>(new Set())
 
-    const [rawAccount, setRawAccount] = useState<ApiCredit | null>(null)
+    const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null)
+    const [transactions, setTransactions] = useState<CreditTransaction[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -195,45 +176,79 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
         setIsLoading(true)
         setError(null)
         try {
-            const data = await creditService.getById(accountId)
+            const raw = await creditService.getByCustomer(customerId)
+            const arr: ApiCredit[] = Array.isArray(raw)
+                ? (raw as ApiCredit[])
+                : ((raw as { data?: ApiCredit[] }).data ?? [])
 
-            // If the credit has an order_id but the API didn't embed order items,
-            // fetch the order separately so we can display the credited products.
-            if (data.order_id && (!data.order?.items || data.order.items.length === 0)) {
-                try {
-                    const order = await orderService.getById(data.order_id)
-                    const rawOrder = order as any
-                    const rawItems = Array.isArray(rawOrder?.items)
-                        ? rawOrder.items
-                        : Array.isArray(rawOrder?.order_items)
-                            ? rawOrder.order_items
-                            : []
-                    data.order = {
-                        id: rawOrder.id ?? data.order_id,
-                        order_number: rawOrder.order_number ?? null,
-                        ordered_at: rawOrder.ordered_at ?? null,
-                        items: rawItems,
-                    }
-                } catch {
-                    // Order fetch failed — show credit info without products
-                }
+            if (arr.length === 0) {
+                setCustomerInfo(null)
+                setTransactions([])
+                return
             }
 
-            setRawAccount(data)
+            // Extract customer info from first credit that has it
+            const infoSource = arr.find(c => c.customer?.name || c.credit_customer) ?? arr[0]!
+            setCustomerInfo(resolveCustomerInfo(infoSource))
+
+            // For each credit that has order_id but no embedded items, fetch order
+            const enriched = await Promise.all(arr.map(async (credit) => {
+                if (credit.order_id && (!credit.order?.items || credit.order.items.length === 0)) {
+                    try {
+                        const order = await orderService.getById(credit.order_id)
+                        const rawOrder = order as any
+                        const rawItems = Array.isArray(rawOrder?.items)
+                            ? rawOrder.items
+                            : Array.isArray(rawOrder?.order_items)
+                                ? rawOrder.order_items
+                                : []
+                        return {
+                            ...credit,
+                            order: {
+                                id: rawOrder.id ?? credit.order_id,
+                                order_number: rawOrder.order_number ?? null,
+                                ordered_at: rawOrder.ordered_at ?? null,
+                                items: rawItems,
+                            },
+                        }
+                    } catch {
+                        return credit
+                    }
+                }
+                return credit
+            }))
+
+            setTransactions(enriched.map(mapCreditToTransaction))
         } catch (err: unknown) {
             const e = err as { message?: string }
             setError(e?.message || "Failed to load credit account")
         } finally {
             setIsLoading(false)
         }
-    }, [accountId])
+    }, [customerId])
 
     useEffect(() => { refresh() }, [refresh])
 
-    const account = rawAccount ? mapApiCredit(rawAccount) : null
+    // Aggregated totals
+    const totalAmount = transactions.reduce((s, t) => s + t.amount, 0)
+    const paidAmount = transactions.reduce((s, t) => s + t.paidAmount, 0)
+    const remainingBalance = transactions.reduce((s, t) => s + t.balance, 0)
+
+    // Unpaid credits for payment dialog
+    const unpaidCredits = transactions.filter(t => t.balance > 0)
+
+    const openAddPayment = (creditId?: number) => {
+        const defaultCredit = creditId
+            ? transactions.find(t => t.id === creditId)
+            : unpaidCredits[0]
+        setSelectedCreditId(defaultCredit?.id ?? null)
+        setPaymentAmount("")
+        setPaymentMethod("")
+        setIsAddPaymentOpen(true)
+    }
 
     const handleSubmitPayment = async () => {
-        if (!account || !paymentAmount || !paymentMethod) return
+        if (!selectedCreditId || !paymentAmount || !paymentMethod) return
 
         if (!getOnlineStatus()) {
             Swal.fire({ icon: "info", title: "Unavailable Offline", text: "Payments cannot be recorded while offline." })
@@ -241,30 +256,31 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
         }
 
         const amount = Math.round(parseFloat(paymentAmount))
+        const txn = transactions.find(t => t.id === selectedCreditId)
         if (isNaN(amount) || amount <= 0) {
             Swal.fire({ icon: "error", title: "Invalid Amount", text: "Please enter a valid payment amount." })
             return
         }
-        if (amount > account.remainingBalance) {
-            Swal.fire({ icon: "error", title: "Amount Too High", text: `Payment cannot exceed remaining balance of ₱${account.remainingBalance.toLocaleString()}.` })
+        if (txn && amount > txn.balance) {
+            Swal.fire({ icon: "error", title: "Amount Too High", text: `Payment cannot exceed remaining balance of ₱${txn.balance.toLocaleString()}.` })
             return
         }
 
         setIsSubmittingPayment(true)
         try {
             const method = paymentMethod === "bank" ? "online" : paymentMethod as "cash" | "card" | "online"
-            await creditService.recordPayment(account.id, { amount, method })
+            await creditService.recordPayment(selectedCreditId, { amount, method })
 
             Swal.fire({
                 icon: "success",
                 title: "Payment Recorded",
-                text: `₱${amount.toLocaleString()} payment recorded for ${account.customer.name}.`,
+                text: `₱${amount.toLocaleString()} payment recorded.`,
                 timer: 2000,
                 showConfirmButton: false,
             })
 
             setIsAddPaymentOpen(false)
-            refresh() // Refresh data
+            refresh()
         } catch (err: any) {
             console.error("Failed to record payment:", err)
             const message = err?.response?.data?.message || err?.message || "Failed to record payment."
@@ -273,6 +289,17 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
             setIsSubmittingPayment(false)
         }
     }
+
+    const toggleExpanded = (id: number) => {
+        setExpandedTxn(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id); else next.add(id)
+            return next
+        })
+    }
+
+    const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 
     if (isLoading) {
         return (
@@ -283,15 +310,15 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
         )
     }
 
-    if (!account) {
+    if (error || !customerInfo) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh]">
                 <AlertCircle className="w-12 h-12 text-gray-300 dark:text-[#9898b8] mb-3" />
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
-                    {error ? "Error Loading Account" : "Account Not Found"}
+                    {error ? "Error Loading Account" : "No Credits Found"}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-[#b4b4d0] mb-4">
-                    {error || "This credit account doesn't exist."}
+                    {error || "This customer has no credit transactions."}
                 </p>
                 <Button asChild size="sm">
                     <Link href="/pos/credit-accounts">
@@ -303,28 +330,9 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
         )
     }
 
-    const getStatusBadge = (status: CreditAccount['status']) => {
-        const variants = {
-            active: { className: "bg-blue-50 text-blue-700", text: "Active" },
-            paid: { className: "bg-emerald-50 text-emerald-700", text: "Paid" },
-            overdue: { className: "bg-red-50 text-red-700", text: "Overdue" },
-            defaulted: { className: "bg-gray-100 text-gray-700 dark:text-[#e0e0f0]", text: "Defaulted" },
-        }
-        const config = variants[status]
-        return (
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${config.className}`}>
-                {config.text}
-            </span>
-        )
-    }
-
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-    }
-
     return (
         <div className="space-y-4 pb-6">
-            {/* Compact Header */}
+            {/* Header */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
                     <Button
@@ -336,52 +344,54 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-lg font-bold text-gray-900 dark:text-white">{account.customer.name}</h1>
-                            {getStatusBadge(account.status)}
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-[#b4b4d0]">{account.customer.phone}</p>
+                        <h1 className="text-lg font-bold text-gray-900 dark:text-white">{customerInfo.name}</h1>
+                        {customerInfo.phone && (
+                            <p className="text-xs text-gray-500 dark:text-[#b4b4d0]">{customerInfo.phone}</p>
+                        )}
                     </div>
                 </div>
-                {account.remainingBalance > 0 && (
+                {remainingBalance > 0 && (
                     <Button
                         size="sm"
-                        onClick={() => setIsAddPaymentOpen(true)}
+                        onClick={() => openAddPayment()}
                         className="bg-purple-600 hover:bg-purple-700 h-8"
                     >
-                        <Plus className="w-3.5 h-3.5 mr-1" />
-                        Add Payment
+                        <Banknote className="w-3.5 h-3.5 mr-1" />
+                        Record Payment
                     </Button>
                 )}
             </div>
 
-            {/* Compact Summary */}
+            {/* Summary bar */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] text-sm">
                 <div className="flex items-center gap-2">
                     <span className="text-gray-500 dark:text-[#b4b4d0]">Total:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">₱{account.totalAmount.toLocaleString()}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{fmt(totalAmount)}</span>
                 </div>
                 <div className="w-px h-4 bg-gray-200 dark:bg-[#2d1b69] hidden sm:block" />
                 <div className="flex items-center gap-2">
                     <span className="text-gray-500 dark:text-[#b4b4d0]">Paid:</span>
-                    <span className="font-semibold text-emerald-600">₱{account.paidAmount.toLocaleString()}</span>
+                    <span className="font-semibold text-emerald-600">{fmt(paidAmount)}</span>
                 </div>
                 <div className="w-px h-4 bg-gray-200 dark:bg-[#2d1b69] hidden sm:block" />
                 <div className="flex items-center gap-2">
                     <span className="text-gray-500 dark:text-[#b4b4d0]">Balance:</span>
-                    <span className={`font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                        ₱{account.remainingBalance.toLocaleString()}
+                    <span className={`font-bold ${remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        {fmt(remainingBalance)}
                     </span>
                 </div>
+                <div className="w-px h-4 bg-gray-200 dark:bg-[#2d1b69] hidden sm:block" />
+                <span className="text-xs text-gray-400 dark:text-[#9898b8]">
+                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                </span>
             </div>
 
             {/* Tabs */}
             <div className="border-b border-gray-200 dark:border-[#2d1b69]">
                 <nav className="flex gap-4">
                     {[
-                        { id: 'overview', label: 'Overview', icon: User },
+                        { id: 'transactions', label: 'Transactions', icon: History },
                         { id: 'ledger', label: 'Ledger', icon: BookOpen },
-                        { id: 'payments', label: 'Payments', icon: History },
                     ].map((tab) => {
                         const Icon = tab.icon
                         const isActive = activeTab === tab.id
@@ -404,248 +414,248 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
 
             {/* Tab Content */}
             <div>
-                {/* Overview Tab */}
-                {activeTab === 'overview' && (
-                    <div className="space-y-4">
+                {/* Transactions Tab */}
+                {activeTab === 'transactions' && (
+                    <div className="space-y-3">
+                        {/* Customer info card */}
                         <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Customer Information</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                                 <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
-                                    <User className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
-                                    <span>{account.customer.name}</span>
+                                    <User className="w-4 h-4 text-gray-400" />
+                                    <span>{customerInfo.name}</span>
                                 </div>
-                                {account.customer.phone && (
+                                {customerInfo.phone && (
                                     <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
-                                        <Phone className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
-                                        <span>{account.customer.phone}</span>
+                                        <Phone className="w-4 h-4 text-gray-400" />
+                                        <span>{customerInfo.phone}</span>
                                     </div>
                                 )}
-                                {account.customer.email && (
+                                {customerInfo.email && (
                                     <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
-                                        <Mail className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
-                                        <span>{account.customer.email}</span>
+                                        <Mail className="w-4 h-4 text-gray-400" />
+                                        <span>{customerInfo.email}</span>
                                     </div>
                                 )}
-                                {account.customer.address && (
+                                {customerInfo.address && (
                                     <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0] sm:col-span-2">
-                                        <MapPin className="w-4 h-4 text-gray-400 dark:text-[#9898b8] flex-shrink-0" />
-                                        <span>{account.customer.address}</span>
-                                    </div>
-                                )}
-                                {account.customer.memberSince && (
-                                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#b4b4d0]">
-                                        <Calendar className="w-4 h-4 text-gray-400 dark:text-[#9898b8]" />
-                                        <span>Member since {formatDate(account.customer.memberSince)}</span>
+                                        <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                        <span>{customerInfo.address}</span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Credit Details</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Total Credit</span>
-                                    <div className="text-lg font-bold text-gray-900 dark:text-white">₱{account.totalAmount.toLocaleString()}</div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Total Paid</span>
-                                    <div className="text-lg font-bold text-emerald-600">₱{account.paidAmount.toLocaleString()}</div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Remaining</span>
-                                    <div className={`text-lg font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                        ₱{account.remainingBalance.toLocaleString()}
-                                    </div>
-                                </div>
-                                {account.creditLimit && (
-                                    <div>
-                                        <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Credit Limit</span>
-                                        <div className="text-lg font-bold text-gray-900 dark:text-white">₱{account.creditLimit.toLocaleString()}</div>
-                                    </div>
-                                )}
-                                {account.dueDate && (
-                                    <div>
-                                        <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Due Date</span>
-                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(account.dueDate)}</div>
-                                    </div>
-                                )}
-                                <div>
-                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Created</span>
-                                    <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(account.createdAt)}</div>
-                                </div>
-                            </div>
-                            {account.notes && (
-                                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#2d1b69]">
-                                    <span className="text-gray-500 dark:text-[#b4b4d0] text-xs">Notes</span>
-                                    <p className="text-sm text-gray-700 dark:text-[#e0e0f0] mt-1">{account.notes}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Purchased Items */}
-                        <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <ShoppingBag className="w-4 h-4 text-purple-500" />
-                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    Purchased Items
-                                    {account.orderNumber && (
-                                        <span className="ml-2 text-xs font-normal text-gray-400 dark:text-[#9898b8]">
-                                            Order #{account.orderNumber}
-                                        </span>
-                                    )}
-                                </h3>
-                            </div>
-                            {account.items.length > 0 ? (
-                                <div className="space-y-0 divide-y divide-gray-50 dark:divide-[#2d1b69]">
-                                    {account.items.map((item) => (
-                                        <div key={item.id} className="flex items-center justify-between py-2.5 text-sm">
-                                            <div className="flex-1 min-w-0">
-                                                <span className="font-medium text-gray-900 dark:text-white truncate block">{item.name}</span>
-                                                <span className="text-xs text-gray-400 dark:text-[#9898b8]">
-                                                    {item.quantity} × ₱{item.unitPrice.toLocaleString()}
-                                                </span>
+                        {/* Transaction list */}
+                        <div className="space-y-2">
+                            {transactions.map((txn) => {
+                                const isExpanded = expandedTxn.has(txn.id)
+                                return (
+                                    <div
+                                        key={txn.id}
+                                        className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] overflow-hidden"
+                                    >
+                                        {/* Transaction header row */}
+                                        <div className="flex items-center justify-between gap-3 p-4">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                <button
+                                                    onClick={() => toggleExpanded(txn.id)}
+                                                    className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors flex-shrink-0"
+                                                >
+                                                    {isExpanded
+                                                        ? <ChevronDown className="w-4 h-4" />
+                                                        : <ChevronRight className="w-4 h-4" />
+                                                    }
+                                                </button>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                                            {txn.orderNumber ? `Order #${txn.orderNumber}` : `Credit #${txn.id}`}
+                                                        </span>
+                                                        <StatusBadge status={txn.status} />
+                                                    </div>
+                                                    <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400 dark:text-[#9898b8]">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(txn.createdAt)}
+                                                        {txn.dueDate && (
+                                                            <span className="ml-2">· Due: {formatDate(txn.dueDate)}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <span className="font-semibold text-gray-900 dark:text-white ml-4">
-                                                ₱{item.total.toLocaleString()}
-                                            </span>
+                                            <div className="flex items-center gap-4 text-sm flex-shrink-0">
+                                                <div className="text-right hidden sm:block">
+                                                    <div className="text-xs text-gray-400 dark:text-[#9898b8]">Amount</div>
+                                                    <div className="font-semibold text-gray-900 dark:text-white">{fmt(txn.amount)}</div>
+                                                </div>
+                                                <div className="text-right hidden sm:block">
+                                                    <div className="text-xs text-gray-400 dark:text-[#9898b8]">Paid</div>
+                                                    <div className="font-semibold text-emerald-600">{fmt(txn.paidAmount)}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xs text-gray-400 dark:text-[#9898b8]">Balance</div>
+                                                    <div className={`font-bold ${txn.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                        {fmt(txn.balance)}
+                                                    </div>
+                                                </div>
+                                                {txn.balance > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => openAddPayment(txn.id)}
+                                                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white hidden sm:flex"
+                                                    >
+                                                        <Banknote className="w-3 h-3 mr-1" />
+                                                        Pay
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
-                                    ))}
-                                    <div className="flex items-center justify-between pt-2.5 text-sm font-bold">
-                                        <span className="text-gray-700 dark:text-[#e0e0f0]">Total</span>
-                                        <span className="text-purple-600">₱{account.totalAmount.toLocaleString()}</span>
+
+                                        {/* Expanded: purchased items */}
+                                        {isExpanded && (
+                                            <div className="border-t border-gray-100 dark:border-[#2d1b69] px-4 pb-4 pt-3">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <ShoppingBag className="w-3.5 h-3.5 text-purple-500" />
+                                                    <span className="text-xs font-semibold text-gray-700 dark:text-[#e0e0f0]">Purchased Items</span>
+                                                </div>
+                                                {txn.items.length > 0 ? (
+                                                    <div className="space-y-0 divide-y divide-gray-50 dark:divide-[#2d1b69]">
+                                                        {txn.items.map((item) => (
+                                                            <div key={item.id} className="flex items-center justify-between py-2 text-sm">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <span className="font-medium text-gray-900 dark:text-white truncate block">{item.name}</span>
+                                                                    <span className="text-xs text-gray-400 dark:text-[#9898b8]">
+                                                                        {item.quantity} × ₱{item.unitPrice.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="font-semibold text-gray-900 dark:text-white ml-4">
+                                                                    ₱{item.total.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-400 dark:text-[#9898b8]">Item details not available</p>
+                                                )}
+                                                {txn.notes && (
+                                                    <p className="mt-2 text-xs text-gray-500 dark:text-[#b4b4d0] italic">{txn.notes}</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ) : (
-                                <p className="text-xs text-gray-400 dark:text-[#9898b8] text-center py-4">
-                                    Item details not available
-                                </p>
-                            )}
+                                )
+                            })}
                         </div>
                     </div>
                 )}
 
                 {/* Ledger Tab */}
-                {activeTab === 'ledger' && (() => {
-                    const entries = buildLedgerEntries(account)
-                    const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-                    return (
-                        <div className="space-y-4">
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
-                                        <TrendingDown className="w-3.5 h-3.5 text-red-500" />
-                                        Total Debit
-                                    </div>
-                                    <div className="text-base font-bold text-red-600">{fmt(account.totalAmount)}</div>
+                {activeTab === 'ledger' && (
+                    <div className="space-y-4">
+                        {/* Summary */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                    <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                                    Total Debit
                                 </div>
-                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
-                                        <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                                        Total Credit
-                                    </div>
-                                    <div className="text-base font-bold text-emerald-600">{fmt(account.paidAmount)}</div>
-                                </div>
-                                <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
-                                        <Banknote className="w-3.5 h-3.5 text-orange-500" />
-                                        Balance Due
-                                    </div>
-                                    <div className={`text-base font-bold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                        {fmt(account.remainingBalance)}
-                                    </div>
-                                </div>
+                                <div className="text-base font-bold text-red-600">{fmt(totalAmount)}</div>
                             </div>
-
-                            {/* Ledger Table — Desktop */}
-                            <div className="hidden sm:block bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] overflow-hidden">
-                                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-[#2d1b69]">
-                                    <BookOpen className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        Account Ledger — {account.customer.name}
-                                    </span>
+                            <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                                    Total Paid
                                 </div>
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="bg-gray-50 dark:bg-[#1a1a35] border-b border-gray-100 dark:border-[#2d1b69]">
-                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Date</th>
-                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Description</th>
-                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-red-500 uppercase tracking-wide">Debit (₱)</th>
-                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-emerald-600 uppercase tracking-wide">Credit (₱)</th>
-                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Balance (₱)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {entries.map((entry, i) => (
-                                            <tr key={i} className="border-b border-gray-50 dark:border-[#2d1b69]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a35] transition-colors">
-                                                <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0] whitespace-nowrap">{fmtDate(entry.date)}</td>
-                                                <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{entry.description}</td>
-                                                <td className="py-3 px-4 text-right font-semibold text-red-600">
-                                                    {entry.debit !== null ? fmt(entry.debit) : <span className="text-gray-300 dark:text-gray-600">—</span>}
-                                                </td>
-                                                <td className="py-3 px-4 text-right font-semibold text-emerald-600">
-                                                    {entry.credit !== null ? fmt(entry.credit) : <span className="text-gray-300 dark:text-gray-600">—</span>}
-                                                </td>
-                                                <td className={`py-3 px-4 text-right font-bold ${entry.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                    {fmt(entry.balance)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {/* Balance Due footer row */}
-                                        <tr className={`border-t-2 ${account.remainingBalance > 0 ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10'}`}>
-                                            <td colSpan={4} className={`py-3 px-4 text-sm font-bold ${account.remainingBalance > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                                                {account.remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
-                                            </td>
-                                            <td className={`py-3 px-4 text-right text-base font-extrabold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                {fmt(account.remainingBalance)}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div className="text-base font-bold text-emerald-600">{fmt(paidAmount)}</div>
                             </div>
-
-                            {/* Ledger Cards — Mobile */}
-                            <div className="sm:hidden space-y-2">
-                                {entries.map((entry, i) => (
-                                    <div key={i} className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="text-sm font-medium text-gray-900 dark:text-white">{entry.description}</span>
-                                            <span className="text-xs text-gray-400 dark:text-[#9898b8]">{fmtDate(entry.date)}</span>
-                                        </div>
-                                        <div className="flex gap-4 text-xs mt-1">
-                                            <span className="text-red-500">DR: {entry.debit !== null ? fmt(entry.debit) : '—'}</span>
-                                            <span className="text-emerald-600">CR: {entry.credit !== null ? fmt(entry.credit) : '—'}</span>
-                                            <span className={`font-semibold ml-auto ${entry.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                Bal: {fmt(entry.balance)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                                <div className={`rounded-lg border-2 p-3 text-center ${account.remainingBalance > 0 ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/10'}`}>
-                                    <div className={`text-xs font-semibold mb-0.5 ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                        {account.remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
-                                    </div>
-                                    <div className={`text-lg font-extrabold ${account.remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                        {fmt(account.remainingBalance)}
-                                    </div>
+                            <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-xs text-gray-500 dark:text-[#b4b4d0] mb-1">
+                                    <Banknote className="w-3.5 h-3.5 text-orange-500" />
+                                    Balance Due
+                                </div>
+                                <div className={`text-base font-bold ${remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                    {fmt(remainingBalance)}
                                 </div>
                             </div>
                         </div>
-                    )
-                })()}
 
-                {/* Payments Tab */}
-                {activeTab === 'payments' && (
-                    <div className="bg-white dark:bg-[#13132a] p-8 text-center rounded-lg border border-dashed border-gray-200 dark:border-[#2d1b69]">
-                        <Banknote className="w-10 h-10 text-gray-300 dark:text-[#9898b8] mx-auto mb-2" />
-                        <p className="text-sm text-gray-500 dark:text-[#b4b4d0]">
-                            Payment history is tracked in the credit balance above.
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-[#9898b8] mt-1">
-                            Paid: ₱{account.paidAmount.toLocaleString()} of ₱{account.totalAmount.toLocaleString()}
-                        </p>
+                        {/* Ledger table — Desktop */}
+                        <div className="hidden sm:block bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-[#2d1b69]">
+                                <BookOpen className="w-4 h-4 text-purple-500" />
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Account Ledger — {customerInfo.name}
+                                </span>
+                            </div>
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-[#1a1a35] border-b border-gray-100 dark:border-[#2d1b69]">
+                                        <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Date</th>
+                                        <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Reference</th>
+                                        <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Status</th>
+                                        <th className="text-right py-2.5 px-4 text-xs font-semibold text-red-500 uppercase tracking-wide">Debit (₱)</th>
+                                        <th className="text-right py-2.5 px-4 text-xs font-semibold text-emerald-600 uppercase tracking-wide">Paid (₱)</th>
+                                        <th className="text-right py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Balance (₱)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transactions.map((txn) => (
+                                        <tr key={txn.id} className="border-b border-gray-50 dark:border-[#2d1b69]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a35] transition-colors">
+                                            <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0] whitespace-nowrap">{formatDate(txn.createdAt)}</td>
+                                            <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">
+                                                {txn.orderNumber ? `Order #${txn.orderNumber}` : `Credit #${txn.id}`}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <StatusBadge status={txn.status} />
+                                            </td>
+                                            <td className="py-3 px-4 text-right font-semibold text-red-600">{fmt(txn.amount)}</td>
+                                            <td className="py-3 px-4 text-right font-semibold text-emerald-600">{fmt(txn.paidAmount)}</td>
+                                            <td className={`py-3 px-4 text-right font-bold ${txn.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                {fmt(txn.balance)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    <tr className={`border-t-2 ${remainingBalance > 0 ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10'}`}>
+                                        <td colSpan={5} className={`py-3 px-4 text-sm font-bold ${remainingBalance > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                                            {remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
+                                        </td>
+                                        <td className={`py-3 px-4 text-right text-base font-extrabold ${remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                            {fmt(remainingBalance)}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Ledger — Mobile */}
+                        <div className="sm:hidden space-y-2">
+                            {transactions.map((txn) => (
+                                <div key={txn.id} className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {txn.orderNumber ? `Order #${txn.orderNumber}` : `Credit #${txn.id}`}
+                                        </span>
+                                        <StatusBadge status={txn.status} />
+                                    </div>
+                                    <div className="text-xs text-gray-400 dark:text-[#9898b8] mb-1">{formatDate(txn.createdAt)}</div>
+                                    <div className="flex gap-4 text-xs">
+                                        <span className="text-red-500">DR: {fmt(txn.amount)}</span>
+                                        <span className="text-emerald-600">Paid: {fmt(txn.paidAmount)}</span>
+                                        <span className={`font-semibold ml-auto ${txn.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                            Bal: {fmt(txn.balance)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                            <div className={`rounded-lg border-2 p-3 text-center ${remainingBalance > 0 ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/10'}`}>
+                                <div className={`text-xs font-semibold mb-0.5 ${remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                    {remainingBalance > 0 ? 'Balance Due' : '✓ Fully Paid'}
+                                </div>
+                                <div className={`text-lg font-extrabold ${remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                    {fmt(remainingBalance)}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -656,11 +666,33 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                     <DialogHeader>
                         <DialogTitle>Record Payment</DialogTitle>
                         <DialogDescription>
-                            Balance: ₱{account.remainingBalance.toLocaleString()}
+                            {customerInfo.name} — Balance: {fmt(remainingBalance)}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-2">
+                        {/* Select credit if multiple unpaid */}
+                        {unpaidCredits.length > 1 && (
+                            <div className="space-y-1.5">
+                                <Label className="text-sm">Apply to Credit</Label>
+                                <Select
+                                    value={selectedCreditId ? String(selectedCreditId) : ""}
+                                    onValueChange={(v) => setSelectedCreditId(Number(v))}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Select credit" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {unpaidCredits.map((t) => (
+                                            <SelectItem key={t.id} value={String(t.id)}>
+                                                {t.orderNumber ? `Order #${t.orderNumber}` : `Credit #${t.id}`} — Balance: {fmt(t.balance)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <div className="space-y-1.5">
                             <Label htmlFor="paymentAmount" className="text-sm">Amount (₱)</Label>
                             <Input
@@ -686,17 +718,6 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="paymentNotes" className="text-sm">Notes (optional)</Label>
-                            <Input
-                                id="paymentNotes"
-                                placeholder="Add notes..."
-                                value={paymentNotes}
-                                onChange={(e) => setPaymentNotes(e.target.value)}
-                                className="h-10"
-                            />
-                        </div>
                     </div>
 
                     <DialogFooter className="gap-2">
@@ -705,7 +726,7 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                         </Button>
                         <Button
                             className="bg-purple-600 hover:bg-purple-700"
-                            disabled={!paymentAmount || !paymentMethod || isSubmittingPayment}
+                            disabled={!paymentAmount || !paymentMethod || !selectedCreditId || isSubmittingPayment}
                             onClick={handleSubmitPayment}
                             size="sm"
                         >

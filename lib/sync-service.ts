@@ -120,6 +120,7 @@ export async function cacheCustomers(customers: ApiCustomer[]): Promise<void> {
     name: c.name,
     email: c.email || undefined,
     phone: c.phone || undefined,
+    address: c.address || undefined,
     status: c.status as string,
     orders_count: c.orders_count,
     total_spent: c.total_spent,

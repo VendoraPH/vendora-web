@@ -87,47 +87,85 @@ interface CreditAccount {
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
     lastPaymentDate?: string
+    /** ID of the most-recent unpaid credit record — used for the Pay button */
+    primaryCreditId?: number
 }
 
 
 // ---------------------------------------------------------------------------
-// Map API credit → UI CreditAccount shape
+// Group API credits by customer → one CreditAccount row per customer
 // ---------------------------------------------------------------------------
-function mapApiCredit(c: ApiCredit): CreditAccount {
-    const status: CreditAccount["status"] =
-        c.status === "active" || c.status === "overdue" || c.status === "paid" || c.status === "defaulted"
-            ? c.status
-            : "active"
+function groupCreditsByCustomer(credits: ApiCredit[]): CreditAccount[] {
+    // Build a map: customer_id → { best customer info, list of credits }
+    const map = new Map<number, {
+        customer: ApiCredit['customer']
+        credit_customer: ApiCredit['credit_customer']
+        credits: ApiCredit[]
+    }>()
 
-    // Resolve name from customer object or credit_customer fields
-    const cc = c.credit_customer
-    const fullName = c.customer?.name
-        ?? (cc ? [cc.first_name, cc.middle_name, cc.last_name].filter(Boolean).join(" ") : null)
-        ?? `Customer #${c.customer_id}`
-
-    const phone = c.customer?.phone ?? cc?.contact_number ?? undefined
-    const email = c.customer?.email ?? undefined
-    const address = c.customer?.address ?? cc?.address ?? undefined
-
-    return {
-        id: c.id,
-        customer: {
-            id: c.customer?.id ?? c.customer_id,
-            name: fullName,
-            phone: phone ?? undefined,
-            email,
-            address,
-        },
-        totalAmount: Number(c.amount) / 100 || 0,
-        paidAmount: Number(c.paid_amount) / 100 || 0,
-        remainingBalance: Number(c.balance) / 100 || 0,
-        creditLimit: c.credit_limit ? Number(c.credit_limit) / 100 : undefined,
-        dueDate: c.due_date ?? undefined,
-        payments: [],
-        items: [],
-        status,
-        createdAt: c.created_at,
+    for (const credit of credits) {
+        const cid = credit.customer_id
+        if (!map.has(cid)) {
+            map.set(cid, { customer: credit.customer, credit_customer: credit.credit_customer, credits: [] })
+        }
+        const entry = map.get(cid)!
+        // Keep the customer object that actually has a name
+        if (!entry.customer?.name && credit.customer?.name) {
+            entry.customer = credit.customer
+        }
+        entry.credits.push(credit)
     }
+
+    return [...map.entries()].map(([customer_id, { customer, credit_customer, credits: cs }]) => {
+        const cc = credit_customer
+        const fullName = customer?.name
+            ?? (cc ? [cc.first_name, cc.middle_name, cc.last_name].filter(Boolean).join(" ") : null)
+            ?? `Customer #${customer_id}`
+
+        // Aggregate totals (amounts are in centavos)
+        const totalAmount = cs.reduce((s, c) => s + (Number(c.amount) / 100 || 0), 0)
+        const paidAmount = cs.reduce((s, c) => s + (Number(c.paid_amount) / 100 || 0), 0)
+        const remainingBalance = cs.reduce((s, c) => s + (Number(c.balance) / 100 || 0), 0)
+
+        // Overall status: overdue beats active beats defaulted beats paid
+        let status: CreditAccount['status'] = 'paid'
+        for (const c of cs) {
+            if (c.status === 'overdue') { status = 'overdue'; break }
+            if (c.status === 'active') status = 'active'
+            else if (status !== 'active' && c.status === 'defaulted') status = 'defaulted'
+        }
+
+        // Earliest credit record
+        const createdAt = cs.reduce((min, c) => c.created_at < min ? c.created_at : min, cs[0]?.created_at ?? new Date().toISOString())
+
+        // Latest due date among unpaid credits
+        const dueDates = cs.filter(c => Number(c.balance) > 0 && c.due_date).map(c => c.due_date!)
+        const dueDate = dueDates.length > 0 ? dueDates.sort().at(-1) : undefined
+
+        // Primary credit for direct payment from list (first unpaid active/overdue credit)
+        const primaryCredit = cs.find(c => Number(c.balance) > 0 && (c.status === 'active' || c.status === 'overdue')) ?? cs[0]
+
+        return {
+            id: customer_id,       // navigate to /pos/credit-accounts/{customer_id}
+            customer: {
+                id: customer?.id ?? customer_id,
+                name: fullName,
+                phone: customer?.phone ?? cc?.contact_number ?? undefined,
+                email: customer?.email ?? undefined,
+                address: customer?.address ?? cc?.address ?? undefined,
+            },
+            totalAmount,
+            paidAmount,
+            remainingBalance,
+            creditLimit: undefined,
+            dueDate,
+            payments: [],
+            items: [],
+            status,
+            createdAt,
+            primaryCreditId: primaryCredit?.id,
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +239,9 @@ export default function CreditAccountsPage() {
                 const raw = customersResp.value
                 const list = Array.isArray(raw) ? raw : (raw.data ?? [])
                 list.forEach(c => customerMap.set(c.id, c))
+                console.log("[Credits] Customers fetched:", list.length, list.map((c: any) => `${c.id}:${c.name}`))
+            } else {
+                console.warn("[Credits] Failed to fetch customers:", customersResp.reason)
             }
 
             const enrichCredit = (credit: ApiCredit): ApiCredit => {
@@ -220,10 +261,14 @@ export default function CreditAccountsPage() {
                 const raw = globalResp.value
                 const list: ApiCredit[] = Array.isArray(raw) ? raw : (raw.data ?? [])
                 globalCredits.push(...list.map(enrichCredit))
+                console.log("[Credits] GET /api/credits returned:", list.length, "credits")
+            } else {
+                console.warn("[Credits] GET /api/credits failed:", globalResp.reason)
             }
 
             // Always fetch per-customer too — guarantees all customers are covered
             const customers = [...customerMap.values()]
+            console.log("[Credits] Fetching credits for", customers.length, "customers...")
             const perCustomerResults = await Promise.allSettled(
                 customers.map(c =>
                     creditService.getByCustomer(c.id).then(data => ({ data, customer: c }))
@@ -232,11 +277,15 @@ export default function CreditAccountsPage() {
 
             const perCustomerCredits: ApiCredit[] = []
             for (const result of perCustomerResults) {
-                if (result.status !== "fulfilled") continue
+                if (result.status !== "fulfilled") {
+                    console.warn("[Credits] Per-customer fetch failed:", result.reason)
+                    continue
+                }
                 const { data, customer } = result.value
                 const arr: ApiCredit[] = Array.isArray(data)
                     ? (data as ApiCredit[])
                     : ((data as { data?: ApiCredit[] }).data ?? [])
+                console.log(`[Credits] Customer ${customer.id} (${customer.name}): ${arr.length} credits`)
                 arr.forEach(credit => {
                     perCustomerCredits.push({
                         ...credit,
@@ -257,6 +306,7 @@ export default function CreditAccountsPage() {
                 }
             }
 
+            console.log("[Credits] Total merged credits:", merged.length)
             setRawAccounts(merged)
         } catch (err: unknown) {
             const e = err as { message?: string }
@@ -270,7 +320,7 @@ export default function CreditAccountsPage() {
 
     const refresh = fetchAccounts
 
-    const accounts = useMemo(() => rawAccounts.map(mapApiCredit), [rawAccounts])
+    const accounts = useMemo(() => groupCreditsByCustomer(rawAccounts), [rawAccounts])
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const toggleExpanded = (accountId: number) => {
@@ -331,7 +381,9 @@ export default function CreditAccountsPage() {
         try {
             // Map "bank" to "online" for API compatibility
             const method = paymentMethod === "bank" ? "online" : paymentMethod as "cash" | "card" | "online"
-            await creditService.recordPayment(selectedAccount.id, { amount, method })
+            // Use primaryCreditId when available (grouped view uses customer_id as account.id)
+            const creditId = selectedAccount.primaryCreditId ?? selectedAccount.id
+            await creditService.recordPayment(creditId, { amount, method })
 
             Swal.fire({
                 icon: "success",

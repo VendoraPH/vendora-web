@@ -89,6 +89,7 @@ interface CreditAccount {
     status: 'active' | 'overdue' | 'paid' | 'defaulted'
     createdAt: string
     lastPaymentDate?: string
+    primaryCreditId?: number
 }
 
 interface CreditAccountsDataTableProps {

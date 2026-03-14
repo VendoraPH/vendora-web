@@ -36,7 +36,7 @@ import {
   FileText,
 } from "lucide-react";
 import { type POSScreenProps } from "./types";
-import { customerService } from "@/services";
+import { customerService, creditService } from "@/services";
 
 const THEME = {
   bg: "bg-gray-50 dark:bg-gradient-to-br dark:from-[#1f1633] dark:via-[#241a3a] dark:to-[#2b1f4a]",
@@ -177,16 +177,32 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
       .slice(0, 8);
     setSearchResults(localMatches);
 
-    // Then hit the API to catch customers not in local cache
+    // Then hit the API — enrich local matches with fresh phone/address and add any new results
     try {
       setIsSearching(true);
       const response = await customerService.getAll({ search: query, per_page: 10 });
-      const apiResults = Array.isArray(response) ? response : (response as any)?.data ?? [];
-      // Merge: keep local matches + any new ones from API not already listed
+      const apiResults: { id: number; name: string; phone?: string | null; address?: string | null }[] =
+        Array.isArray(response) ? response : (response as any)?.data ?? [];
+
+      // Build a map of API results by id for quick lookup
+      const apiById = new Map(apiResults.map((c) => [c.id, c]));
+
+      // Enrich local matches with fresh API data (phone, address may be missing from cache)
+      const enriched = localMatches.map((c) => {
+        const fresh = apiById.get(c.id);
+        if (!fresh) return c;
+        return {
+          ...c,
+          phone: fresh.phone ?? c.phone,
+          address: fresh.address ?? c.address,
+        };
+      });
+
+      // Append any API results not already in the local list
       const localIds = new Set(localMatches.map((c) => c.id));
       const merged = [
-        ...localMatches,
-        ...apiResults.filter((c: { id: number }) => !localIds.has(c.id)),
+        ...enriched,
+        ...apiResults.filter((c) => !localIds.has(c.id)),
       ].slice(0, 8);
       setSearchResults(merged);
     } catch {
@@ -1187,6 +1203,30 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
                         setLocalCreditorAddress(c.address ?? "");
                         setCustomerSearch(c.name);
                         setShowCustomerDropdown(false);
+
+                        // Address is not stored on the customer record — it only exists in
+                        // credit_customer.address on past credit transactions. Fetch the
+                        // customer's credit history to pre-fill phone and address from the
+                        // most recent credit that has those fields.
+                        if (c.id && c.id > 0) {
+                          creditService.getByCustomer(c.id).then((res) => {
+                            const credits: any[] = Array.isArray(res) ? res : (res as any)?.data ?? [];
+                            // Sort newest first
+                            const sorted = [...credits].sort((a, b) =>
+                              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                            );
+                            for (const credit of sorted) {
+                              const cc = credit.credit_customer;
+                              if (!c.phone && cc?.contact_number) {
+                                setLocalCreditorPhone(cc.contact_number);
+                              }
+                              if (cc?.address) {
+                                setLocalCreditorAddress(cc.address);
+                                break;
+                              }
+                            }
+                          }).catch(() => { /* silently ignore */ });
+                        }
                       }}
                     >
                       <span className="text-sm text-gray-900 dark:text-white font-medium">{c.name}</span>

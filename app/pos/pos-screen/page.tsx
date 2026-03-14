@@ -439,8 +439,36 @@ export default function VendoraPOS() {
 
         if (customersResult.status === "fulfilled") {
           const customersList = extractDataArray(customersResult.value);
-          setCustomers(customersList);
           await syncService.cacheCustomers(customersList);
+
+          // Re-merge with order history names so credit customers (who may only
+          // appear in orders' customer_name, not the customer database) are still
+          // searchable in the credit info dialog after the API sync overwrites state.
+          const freshOrders = await db.orders.toArray();
+          const orderCustomerMap = new Map<string, ApiCustomer>();
+          for (const o of freshOrders) {
+            const name = (o as any).customer_name?.trim();
+            if (name && name.toLowerCase() !== 'walk-in customer') {
+              const key = name.toLowerCase();
+              if (!orderCustomerMap.has(key)) {
+                orderCustomerMap.set(key, {
+                  id: (o as any).customer_id || 0,
+                  name,
+                  phone: undefined,
+                  status: 'active',
+                  created_at: '',
+                  updated_at: '',
+                } as ApiCustomer);
+              }
+            }
+          }
+          const mergedAfterSync = [...customersList];
+          for (const oc of orderCustomerMap.values()) {
+            if (!mergedAfterSync.find(c => c.name.toLowerCase() === oc.name.toLowerCase())) {
+              mergedAfterSync.push(oc);
+            }
+          }
+          setCustomers(mergedAfterSync);
         }
 
         console.log('✅ Background sync complete');
