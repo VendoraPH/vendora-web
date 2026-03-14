@@ -688,11 +688,12 @@ export default function VendoraPOS() {
       }
 
       // Save transaction locally FIRST (offline-first approach)
+      // Convert pesos to cents for storage/sync
       const paymentMethods = splitPay
         ? [
-          cashPay > 0 && { method: 'cash' as const, amount: cashPay },
-          cardPay > 0 && { method: 'card' as const, amount: cardPay },
-          onlinePay > 0 && { method: 'online' as const, amount: onlinePay }
+          cashPay > 0 && { method: 'cash' as const, amount: Math.round(cashPay * 100) },
+          cardPay > 0 && { method: 'card' as const, amount: Math.round(cardPay * 100) },
+          onlinePay > 0 && { method: 'online' as const, amount: Math.round(onlinePay * 100) }
         ].filter(Boolean) as Array<{ method: 'cash' | 'card' | 'online'; amount: number }>
         : undefined;
 
@@ -705,17 +706,17 @@ export default function VendoraPOS() {
           product_id: Number(item.id),
           product_name: item.name,
           quantity: item.qty,
-          price: item.price
+          price: Math.round(item.price * 100) // POS works in pesos, convert to cents for storage/sync
         })),
-        subtotal: totals.subtotal,
-        discount: totals.discount,
-        tax: totals.tax,
-        delivery_fee: totals.deliveryFee,
-        total: totals.total,
+        subtotal: Math.round(totals.subtotal * 100),
+        discount: Math.round(totals.discount * 100),
+        tax: Math.round(totals.tax * 100),
+        delivery_fee: Math.round(totals.deliveryFee * 100),
+        total: Math.round(totals.total * 100),
         payment_method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod as "cash" | "card" | "online",
         payment_methods: paymentMethods,
-        amount_tendered: isCredit ? amountDue : paid,
-        change: isCredit ? 0 : change,
+        amount_tendered: Math.round((isCredit ? amountDue : paid) * 100),
+        change: Math.round((isCredit ? 0 : change) * 100),
         store_id: selectedStore || undefined,
         is_credit: isCredit || undefined,
         credit_customer: isCredit ? {
@@ -748,27 +749,27 @@ export default function VendoraPOS() {
         customer_name: customerName,
         ordered_at: txnDate,
         status: isCredit ? 'pending' : 'completed',
-        total: Math.round(totals.total),
-        subtotal: Math.round(totals.subtotal),
-        tax: Math.round(totals.tax),
-        discount: Math.round(totals.discount),
-        delivery_fee: Math.round(totals.deliveryFee),
+        total: Math.round(totals.total * 100),
+        subtotal: Math.round(totals.subtotal * 100),
+        tax: Math.round(totals.tax * 100),
+        discount: Math.round(totals.discount * 100),
+        delivery_fee: Math.round(totals.deliveryFee * 100),
         payment_method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod,
         items: cart.map(item => ({
           product_id: Number(item.id),
           product_name: item.name,
           quantity: item.qty,
-          price: item.price,
+          price: Math.round(item.price * 100),
         })),
       }).catch(err => console.error('Failed to write order to local DB:', err));
 
-      // Write payment record(s)
+      // Write payment record(s) — paymentMethods.amount is already in cents
       if (paymentMethods && paymentMethods.length > 1) {
         for (const pm of paymentMethods) {
           await localDb.payments.addFromTransaction({
             order_id: -Date.now(),
             customer_name: customerName,
-            amount: Math.round(pm.amount * 100),
+            amount: pm.amount,
             method: pm.method,
             status: 'completed',
             paid_at: paidAtStr,
