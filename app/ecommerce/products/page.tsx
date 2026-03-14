@@ -255,14 +255,14 @@ function FilterPanel({
                 <Slider
                     min={0}
                     max={maxPrice}
-                    step={10}
+                    step={1000}
                     value={priceRange}
                     onValueChange={(v) => onPriceRangeChange(v as [number, number])}
                     className="w-full"
                 />
                 <div className="flex justify-between mt-2 text-sm font-semibold">
-                    <span className="text-[#7C3AED] dark:text-[#7C3AED]">{"\u20B1"}{priceRange[0]}</span>
-                    <span className="text-[#7C3AED] dark:text-[#7C3AED]">{"\u20B1"}{priceRange[1]}</span>
+                    <span className="text-[#7C3AED] dark:text-[#7C3AED]">{formatCurrency(priceRange[0])}</span>
+                    <span className="text-[#7C3AED] dark:text-[#7C3AED]">{formatCurrency(priceRange[1])}</span>
                 </div>
             </div>
 
@@ -292,7 +292,7 @@ export default function ProductsPage() {
     const [totalApiCount, setTotalApiCount] = useState(0)
 
     const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000])
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000])
     const [showFilters, setShowFilters] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
@@ -343,7 +343,7 @@ export default function ProductsPage() {
                 // Compute max price for filter range
                 if (mapped.length > 0) {
                     const max = Math.max(...mapped.map(p => p.price))
-                    const roundedMax = Math.ceil(max / 100) * 100
+                    const roundedMax = Math.ceil(max / 10000) * 10000 || 1000000
                     setPriceRange([0, roundedMax])
                 }
 
@@ -381,9 +381,9 @@ export default function ProductsPage() {
 
     // Compute max price for filter slider
     const maxPrice = useMemo(() => {
-        if (products.length === 0) return 10000
+        if (products.length === 0) return 1000000
         const max = Math.max(...products.map(p => p.price))
-        return Math.ceil(max / 100) * 100 || 10000
+        return Math.ceil(max / 10000) * 10000 || 1000000
     }, [products])
 
     // Flash sale products (products with discounts)

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -447,8 +448,8 @@ export default function CustomersPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {typeof customer.total_spent === "number"
-                          ? `\u20B1${(customer.total_spent / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : "\u20B10"}
+                          ? formatCurrency(customer.total_spent)
+                          : "₱0"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -511,7 +512,7 @@ export default function CustomersPage() {
                     <div className="text-xs text-gray-500 dark:text-[#b4b4d0] mt-0.5">
                       {customer.orders_count ?? 0} orders
                       {typeof customer.total_spent === "number" && customer.total_spent > 0
-                        ? ` \u2022 \u20B1${(customer.total_spent / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        ? ` \u2022 ${formatCurrency(customer.total_spent)}`
                         : ""}
                     </div>
                   </div>

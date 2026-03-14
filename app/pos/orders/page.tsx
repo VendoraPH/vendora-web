@@ -59,7 +59,7 @@ const normalizeStatus = (status?: string): OrderRow["status"] => {
 }
 
 /**
- * Normalize order details response - convert centavos to pesos
+ * Normalize order details response — keeps values in cents for formatCurrency()
  */
 const normalizeOrderDetails = (raw: any): any => {
   if (!raw) return null
@@ -82,11 +82,11 @@ const normalizeOrderDetails = (raw: any): any => {
     customer: raw?.customer
       ? { ...raw.customer, name: resolvedCustomerName }
       : resolvedCustomerName,
-    total: Number(raw?.total ?? 0) / 100,
-    subtotal: Number(raw?.subtotal ?? 0) / 100,
-    tax: Number(raw?.tax ?? 0) / 100,
-    delivery_fee: Number(raw?.delivery_fee ?? 0) / 100,
-    discount: Number(raw?.discount ?? 0) / 100,
+    total: Number(raw?.total ?? 0),
+    subtotal: Number(raw?.subtotal ?? 0),
+    tax: Number(raw?.tax ?? 0),
+    delivery_fee: Number(raw?.delivery_fee ?? 0),
+    discount: Number(raw?.discount ?? 0),
     items: rawItems.map((item: any) => {
       // Try every common field name the API might use for unit price
       const rawPrice =
@@ -164,7 +164,7 @@ function DesktopOrdersLayout() {
       )
 
       if (localOrder) {
-        // Local DB stores prices in pesos — set directly without /100
+        // Local DB stores values in cents — formatCurrency handles conversion
         setOrderDetails({
           id: localOrder.id,
           order_number: localOrder.order_number,

@@ -31,6 +31,7 @@ import { useDashboardData } from "@/hooks/useDashboardData"
 import type { DateRangeParams } from "@/types/dashboard"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
 import { TOKEN_CONFIG } from "@/config/api.config"
+import { formatCurrency } from "@/lib/utils"
 
 /**
  * Default Dashboard Layout
@@ -102,7 +103,7 @@ export default function DesktopDashboard() {
   const stats = kpis ? [
     {
       title: "Total Sales",
-      value: `₱ ${(kpis.total_sales / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      value: formatCurrency(kpis.total_sales),
       ...formatChange(kpis.total_sales_change),
       icon: PesoSign,
     },
@@ -114,7 +115,7 @@ export default function DesktopDashboard() {
     },
     {
       title: "Net Revenue",
-      value: `₱ ${(kpis.net_revenue / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      value: formatCurrency(kpis.net_revenue),
       change: "After discount",
       changeType: "label" as const,
       icon: Wallet,
