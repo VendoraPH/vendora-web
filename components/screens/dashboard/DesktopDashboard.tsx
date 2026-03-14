@@ -157,13 +157,11 @@ export default function DesktopDashboard() {
       {/* Stale data indicator for offline/cached data */}
       <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
 
-      {/* Desktop Header — compact */}
-      <div className="hidden sm:flex sm:flex-col gap-2 bg-white dark:bg-card p-4 rounded-lg border border-gray-200 dark:border-border xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-center gap-3">
-          <div>
-            <p className="text-xs text-gray-500 dark:text-[#b4b4d0]">Welcome back</p>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{displayName || "Your Store"}</h1>
-          </div>
+      {/* Desktop Header */}
+      <div className="hidden sm:flex sm:flex-col gap-3 bg-white dark:bg-card p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-border xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-[#b4b4d0]">Welcome back</p>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mt-0.5">{displayName || "Your Store"}</h1>
         </div>
         <div className="hidden w-full flex-col gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
           <Select value={period} onValueChange={setPeriod}>
@@ -212,7 +210,7 @@ export default function DesktopDashboard() {
         {/* Top Selling Products — spans both rows */}
         <div className="xl:col-span-4 xl:row-span-2 h-full">
           <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
-            <CardContent className="p-4 h-full overflow-y-auto">
+            <CardContent className="p-5 h-full overflow-y-auto">
               <TopSellingProducts data={topProducts} variant="embedded" />
             </CardContent>
           </Card>
@@ -226,7 +224,7 @@ export default function DesktopDashboard() {
         {/* Inventory Health */}
         <div className="xl:col-span-3 xl:row-start-2">
           <Card className="border-gray-200 dark:border-border dark:bg-card h-full">
-            <CardContent className="p-4 h-full">
+            <CardContent className="p-5 h-full">
               <InventoryHealth data={inventoryHealth} variant="embedded" />
             </CardContent>
           </Card>
@@ -237,18 +235,18 @@ export default function DesktopDashboard() {
       {/* Row 3: Actionable Items — balanced 4-column layout */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Card className="border-gray-200 dark:border-border dark:bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <LowStockAlerts variant="embedded" />
           </CardContent>
         </Card>
         <Card className="border-gray-200 dark:border-border dark:bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <PendingOrders variant="embedded" />
           </CardContent>
         </Card>
         <CashVsCreditChart data={cashVsCredit} className="dark:bg-card dark:border-border" />
         <Card className="border-gray-200 dark:border-border dark:bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <RecentActivity data={recentActivity} variant="embedded" />
           </CardContent>
         </Card>
