@@ -31,43 +31,35 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
           <Card key={index} className="border-0 shadow-sm dark:bg-card dark:border-border">
             <CardContent className="py-3 px-4 sm:py-4 sm:px-6">
               <div className="flex flex-col gap-1 min-w-0">
-                {/* Row 1: Icon + Title + Change (Right aligned) */}
-                <div className="flex items-start justify-between gap-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
-                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    </div>
-                    <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-[#b4b4d0] truncate">{stat.title}</p>
+                {/* Row 1: Icon + Title */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  {/* Change indicator moved to top right */}
-                  <span
-                    className={`text-xs sm:text-sm font-bold flex items-center gap-0.5 shrink-0 ${
-                      stat.changeType === "positive"
-                        ? "text-green-600 dark:text-green-400"
-                        : stat.changeType === "negative"
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-gray-500 dark:text-[#b4b4d0]"
-                    }`}
-                  >
-                    {stat.changeType === "positive" && (
-                      <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    )}
-                    {stat.changeType === "negative" && (
-                      <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    )}
-                    <span className="hidden sm:inline">{stat.change}</span>
-                  </span>
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-[#b4b4d0] truncate">{stat.title}</p>
                 </div>
 
-                {/* Row 2: Large value + Subtitle */}
-                <div className="flex items-baseline gap-2 mt-1 min-w-0">
-                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{stat.value}</h3>
-                  {stat.subtitle && (
-                    <span className="text-xs text-gray-400 dark:text-muted-foreground hidden sm:inline">
-                      {stat.subtitle}
-                    </span>
+                {/* Row 2: Large value */}
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate mt-1">{stat.value}</h3>
+
+                {/* Row 3: Change indicator / label */}
+                <span
+                  className={`text-xs sm:text-sm font-bold flex items-center gap-0.5 ${
+                    stat.changeType === "positive"
+                      ? "text-green-600 dark:text-green-400"
+                      : stat.changeType === "negative"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-500 dark:text-[#b4b4d0]"
+                  }`}
+                >
+                  {stat.changeType === "positive" && (
+                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   )}
-                </div>
+                  {stat.changeType === "negative" && (
+                    <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  )}
+                  <span className="hidden sm:inline">{stat.change}</span>
+                </span>
               </div>
             </CardContent>
           </Card>
