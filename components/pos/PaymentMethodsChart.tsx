@@ -47,18 +47,18 @@ export function PaymentMethodsChart({ data, className, contentClassName }: Payme
           <p className="text-xs text-gray-500 mt-1 dark:text-[#b4b4d0]">Revenue split by channel</p>
         </div>
       </CardHeader>
-      <CardContent className={`p-4 flex-1 flex flex-col ${contentClassName ?? ""}`.trim()}>
-        <div className="flex flex-col items-center justify-center gap-5 flex-1">
+      <CardContent className={`p-4 flex-1 flex flex-col overflow-hidden ${contentClassName ?? ""}`.trim()}>
+        <div className="flex flex-col items-center justify-center gap-3 flex-1 min-h-0">
           {/* Donut Chart */}
-          <div className="w-[160px] h-[160px] relative shrink-0">
+          <div className="w-[140px] h-[140px] relative shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={52}
-                  outerRadius={72}
+                  innerRadius={45}
+                  outerRadius={64}
                   paddingAngle={2}
                   dataKey="value"
                   stroke="none"
@@ -76,10 +76,10 @@ export function PaymentMethodsChart({ data, className, contentClassName }: Payme
           </div>
 
           {/* 3-column method cards */}
-          <div className="grid grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-3 gap-3 w-full shrink-0">
             {chartData.map((item) => (
-              <div key={item.name} className="flex flex-col items-center gap-1.5">
-                <div className="p-2.5 rounded-lg" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
+              <div key={item.name} className="flex flex-col items-center gap-1">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
                   <item.icon className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-medium text-gray-600 dark:text-[#b4b4d0] text-center leading-tight">{item.name}</span>
