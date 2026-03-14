@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode, useState, useEffect, useRef } from "react"
+import { ReactNode, useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -45,6 +45,7 @@ import { useOfflineInit } from "@/hooks/use-offline-init"
 import { db, clearDatabase } from "@/lib/db"
 import { syncService } from "@/lib/sync-service"
 import { authService } from "@/services/auth-jwt.service"
+import { storeService } from "@/services"
 import { tokenManager } from "@/lib/axios-client"
 import { TOKEN_CONFIG } from "@/config/api.config"
 
@@ -96,6 +97,7 @@ export default function POSLayout({ children }: { children: ReactNode }) {
   const [userData, setUserData] = useState<{ name?: string; email?: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [storeSettings, setStoreSettings] = useState<Record<string, any>>({})
 
   // Initialize offline support for all POS pages
   const offline = useOfflineInit()
@@ -120,6 +122,19 @@ export default function POSLayout({ children }: { children: ReactNode }) {
       }
     }
     checkInitialSync()
+
+    // Fetch store settings for conditional sidebar items
+    const fetchStoreSettings = async () => {
+      try {
+        if (!tokenManager.getAccessToken()) return
+        const storesRaw = await storeService.getAll()
+        const stores = Array.isArray(storesRaw) ? storesRaw : (storesRaw as any).data || []
+        if (stores[0]?.settings) {
+          setStoreSettings(stores[0].settings)
+        }
+      } catch { /* silently fail — defaults to showing all items */ }
+    }
+    fetchStoreSettings()
   }, [])
 
   // Auto-collapse sidebar when navigating to POS screen for maximum width
@@ -229,6 +244,16 @@ export default function POSLayout({ children }: { children: ReactNode }) {
       fetchUserData()
     }
   }, [pathname])
+
+  // Filter sidebar sections based on store settings
+  const filteredSidebarSections = useMemo(() => {
+    const foodMenuHidden = storeSettings.food_menu_enabled === false
+    if (!foodMenuHidden) return sidebarSections
+    return sidebarSections.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.label !== "Food Menu"),
+    }))
+  }, [storeSettings])
 
   // Get first letter of name for avatar
   const avatarLetter = userData?.name?.charAt(0).toUpperCase() || 'V'
@@ -405,10 +430,10 @@ export default function POSLayout({ children }: { children: ReactNode }) {
               {/* Primary Menus Section */}
               <div>
                 <h3 className="px-3 mb-2 text-xs font-semibold tracking-wider uppercase text-white/70">
-                  {sidebarSections[0]?.title}
+                  {filteredSidebarSections[0]?.title}
                 </h3>
                 <ul className="space-y-1">
-                  {sidebarSections[0]?.items.map((item) => {
+                  {filteredSidebarSections[0]?.items.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href || (item.href === "/pos/pos-screen" && pathname === "/pos")
 
@@ -463,7 +488,7 @@ export default function POSLayout({ children }: { children: ReactNode }) {
                 {/* View More Dropdown Content - Always rendered, shown/hidden with CSS */}
                 <div className={`mt-2 space-y-4 pl-4 overflow-hidden transition-all duration-300 ${mobileSidebarMoreOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                   }`}>
-                  {sidebarSections.slice(1).map((section, sectionIndex) => (
+                  {filteredSidebarSections.slice(1).map((section, sectionIndex) => (
                     <div key={sectionIndex}>
                       <h3 className="px-3 mb-2 text-xs font-semibold tracking-wider uppercase text-white/60">
                         {section.title}
@@ -524,7 +549,7 @@ export default function POSLayout({ children }: { children: ReactNode }) {
 
             {/* Laptop/Desktop: Show all sections normally */}
             <div className="hidden lg:block">
-              {sidebarSections.map((section, sectionIndex) => (
+              {filteredSidebarSections.map((section, sectionIndex) => (
                 <div key={sectionIndex} className="mb-4">
                   {/* Section Title - Hidden when collapsed on laptop/desktop */}
                   <h3 className={`px-3 mb-1.5 text-xs font-semibold tracking-wider uppercase text-white/70 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
