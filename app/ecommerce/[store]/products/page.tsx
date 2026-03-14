@@ -394,6 +394,7 @@ export default function StoreProductsPage({ params }: { params: Promise<{ store:
                 tagline={storeInfo?.settings?.tagline}
                 address={storeInfo?.address}
                 phone={storeInfo?.phone}
+                operatingHours={storeInfo?.settings?.operating_hours}
             />
 
             {/* ── Main Content ────────────────────────────────────────── */}
