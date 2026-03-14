@@ -86,10 +86,30 @@ interface LedgerEntry {
     balance: number
 }
 
-function buildLedgerEntries(account: CreditAccount): LedgerEntry[] {
-    const entries: LedgerEntry[] = []
+function buildLedgerEntries(account: CreditAccount, apiLedger?: ApiCredit['ledger_entries']): LedgerEntry[] {
+    // Use real ledger entries from API when available
+    if (apiLedger && apiLedger.length > 0) {
+        let runningBalance = 0
+        return apiLedger.map((entry) => {
+            const amount = (Number(entry.amount) || 0) / 100
+            const isDebit = entry.type === 'credit'
+            if (isDebit) {
+                runningBalance += amount
+            } else {
+                runningBalance -= amount
+            }
+            return {
+                date: entry.created_at,
+                description: entry.description || (isDebit ? 'Credit Issued' : 'Payment Received'),
+                debit: isDebit ? amount : null,
+                credit: isDebit ? null : amount,
+                balance: runningBalance,
+            }
+        })
+    }
 
-    // Opening debit: credit issued
+    // Fallback: build synthetic entries from aggregated data
+    const entries: LedgerEntry[] = []
     entries.push({
         date: account.createdAt,
         description: "Credit Issued",
@@ -97,18 +117,15 @@ function buildLedgerEntries(account: CreditAccount): LedgerEntry[] {
         credit: null,
         balance: account.totalAmount,
     })
-
-    // Credit: total payments received
     if (account.paidAmount > 0) {
         entries.push({
-            date: account.notes ? account.createdAt : new Date().toISOString(),
+            date: new Date().toISOString(),
             description: "Payment Received",
             debit: null,
             credit: account.paidAmount,
             balance: account.remainingBalance,
         })
     }
-
     return entries
 }
 
@@ -504,7 +521,7 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
 
                 {/* Ledger Tab */}
                 {activeTab === 'ledger' && (() => {
-                    const entries = buildLedgerEntries(account)
+                    const entries = buildLedgerEntries(account, rawAccount?.ledger_entries)
                     const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
                     return (
@@ -614,17 +631,78 @@ export default function CreditAccountDetailsPage({ params }: { params: Promise<{
                 })()}
 
                 {/* Payments Tab */}
-                {activeTab === 'payments' && (
-                    <div className="bg-white dark:bg-[#13132a] p-8 text-center rounded-lg border border-dashed border-gray-200 dark:border-[#2d1b69]">
-                        <Banknote className="w-10 h-10 text-gray-300 dark:text-[#9898b8] mx-auto mb-2" />
-                        <p className="text-sm text-gray-500 dark:text-[#b4b4d0]">
-                            Payment history is tracked in the credit balance above.
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-[#9898b8] mt-1">
-                            Paid: ₱{account.paidAmount.toLocaleString()} of ₱{account.totalAmount.toLocaleString()}
-                        </p>
-                    </div>
-                )}
+                {activeTab === 'payments' && (() => {
+                    const payments = rawAccount?.payments ?? []
+                    const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                    const fmtTime = (d: string) => new Date(d).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
+                    const methodLabel = (m: string) => {
+                        const labels: Record<string, string> = { cash: 'Cash', card: 'Card', online: 'Bank Transfer' }
+                        return labels[m] ?? m
+                    }
+
+                    if (payments.length === 0) {
+                        return (
+                            <div className="bg-white dark:bg-[#13132a] p-8 text-center rounded-lg border border-dashed border-gray-200 dark:border-[#2d1b69]">
+                                <Banknote className="w-10 h-10 text-gray-300 dark:text-[#9898b8] mx-auto mb-2" />
+                                <p className="text-sm text-gray-500 dark:text-[#b4b4d0]">No payments recorded yet.</p>
+                            </div>
+                        )
+                    }
+
+                    return (
+                        <div className="space-y-3">
+                            {/* Desktop table */}
+                            <div className="hidden sm:block bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-[#1a1a35] border-b border-gray-100 dark:border-[#2d1b69]">
+                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Date</th>
+                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Reference</th>
+                                            <th className="text-left py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Method</th>
+                                            <th className="text-right py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-[#b4b4d0] uppercase tracking-wide">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {payments.map((p) => (
+                                            <tr key={p.id} className="border-b border-gray-50 dark:border-[#2d1b69]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a35] transition-colors">
+                                                <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0] whitespace-nowrap">
+                                                    {fmtDate(p.paid_at)}
+                                                    <span className="text-xs text-gray-400 dark:text-[#9898b8] ml-1">{fmtTime(p.paid_at)}</span>
+                                                </td>
+                                                <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{p.payment_number}</td>
+                                                <td className="py-3 px-4 text-gray-600 dark:text-[#b4b4d0]">{methodLabel(p.method)}</td>
+                                                <td className="py-3 px-4 text-right font-semibold text-emerald-600">{fmt(p.amount / 100)}</td>
+                                            </tr>
+                                        ))}
+                                        <tr className="border-t-2 border-gray-200 dark:border-[#2d1b69] bg-gray-50 dark:bg-[#1a1a35]">
+                                            <td colSpan={3} className="py-3 px-4 text-sm font-bold text-gray-700 dark:text-[#e0e0f0]">Total Paid</td>
+                                            <td className="py-3 px-4 text-right text-base font-extrabold text-emerald-600">
+                                                {fmt(payments.reduce((sum, p) => sum + p.amount, 0) / 100)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile cards */}
+                            <div className="sm:hidden space-y-2">
+                                {payments.map((p) => (
+                                    <div key={p.id} className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-100 dark:border-[#2d1b69] p-3">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-sm font-medium text-gray-900 dark:text-white">{p.payment_number}</span>
+                                            <span className="text-xs text-gray-400 dark:text-[#9898b8]">{fmtDate(p.paid_at)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs mt-1">
+                                            <span className="text-gray-500 dark:text-[#b4b4d0]">{methodLabel(p.method)}</span>
+                                            <span className="font-semibold text-emerald-600">{fmt(p.amount / 100)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                })()}
             </div>
 
             {/* Add Payment Dialog */}

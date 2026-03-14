@@ -65,6 +65,24 @@ export interface ApiCredit {
     due_date?: string | null
     credit_limit?: number | null
     notes?: string | null
+    /** Individual ledger entries (credit issuance + repayments) — included in show response */
+    ledger_entries?: Array<{
+        id: number
+        type: string
+        amount: number
+        reference?: string | null
+        description?: string | null
+        created_at: string
+    }>
+    /** Individual payment records — included in show response */
+    payments?: Array<{
+        id: number
+        payment_number: string
+        amount: number
+        method: string
+        paid_at: string
+        order_id?: number | null
+    }>
     created_at: string
     updated_at: string
 }
