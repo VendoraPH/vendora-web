@@ -20,7 +20,7 @@ export function TopSellingProducts({ data, variant = "default" }: TopSellingProd
   const products = data?.items.map(item => ({
     name: item.name,
     units: item.units_sold,
-    revenue: item.revenue,
+    revenue: item.revenue / 100,
   })) || []
 
   // Calculate max revenue for percentage calculations
@@ -47,7 +47,7 @@ export function TopSellingProducts({ data, variant = "default" }: TopSellingProd
               <YAxis hide />
               <Tooltip
                 formatter={(value, name) => {
-                  if (name === 'revenue') return [`₱ ${value.toLocaleString()}`, 'Revenue']
+                  if (name === 'revenue') return [`₱ ${Number(value).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Revenue']
                   return [value, 'Units']
                 }}
               />
@@ -73,7 +73,7 @@ export function TopSellingProducts({ data, variant = "default" }: TopSellingProd
                   <div className="flex gap-3 text-xs">
                     <span className="text-gray-500 dark:text-[#b4b4d0]">{product.units} units</span>
                     <span className="font-semibold text-purple-600 dark:text-purple-400 min-w-[80px] text-right">
-                      {"₱ "}{product.revenue.toLocaleString()}
+                      {"₱ "}{product.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
