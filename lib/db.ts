@@ -377,6 +377,29 @@ export class VendoraPOSDB extends Dexie {
         });
       });
     });
+
+    // v5: Clear stale synced orders that were double-divided (/100 in sync + /100 in formatCurrency).
+    // They'll re-download from API with correct raw cents values.
+    this.version(5).stores({
+      products: 'id, _localId, barcode, sku, name, category_id, is_active, _status, last_synced',
+      categories: 'id, name, last_synced',
+      customers: 'id, _localId, name, phone, status, _status, last_synced',
+      stores: 'id, name, is_active, last_synced',
+      orders: 'id, _localId, customer_id, status, _status, ordered_at, _lastModified',
+      payments: 'id, _localId, order_id, method, _status, _lastModified',
+      pendingUploads: '++id, entityType, entityLocalId, status, createdAt',
+      transactions: 'uuid, order_id, customer_id, synced, created_at, status',
+      syncQueue: '++id, uuid, type, status, priority, created_at',
+      syncLogs: '++id, type, status, started_at',
+      cachedCredentials: 'email, cachedAt',
+      cachedData: 'key, lastSyncedAt'
+    }).upgrade(tx => {
+      return tx.table('orders').toCollection().modify(function (order, ref) {
+        if (order._status === 'synced') {
+          delete ref.value;
+        }
+      });
+    });
   }
 }
 
