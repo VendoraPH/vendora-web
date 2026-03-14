@@ -375,7 +375,7 @@ export default function VendoraPOS() {
         })) as ApiStore[];
         setStores(apiStores);
         if (!selectedStore && apiStores.length > 0) {
-          setSelectedStore(apiStores[0].id);
+          setSelectedStore(apiStores[0]!.id);
         }
         console.log(`✅ Loaded ${localStores.length} stores from cache`);
       }
@@ -406,7 +406,7 @@ export default function VendoraPOS() {
           const activeStores = storesList.filter((s: ApiStore) => s.is_active);
           setStores(activeStores);
           if (!selectedStore && activeStores.length > 0) {
-            setSelectedStore(activeStores[0].id);
+            setSelectedStore(activeStores[0]!.id);
           }
           await syncService.cacheStores(storesList);
         }
@@ -1024,7 +1024,7 @@ export default function VendoraPOS() {
             <div className="hidden lg:flex gap-2 ml-2">
               <Pill>Cashier</Pill>
               {stores.length === 1 && (
-                <Pill>{stores[0].name}</Pill>
+                <Pill>{stores[0]!.name}</Pill>
               )}
               {stores.length > 1 && selectedStore && (
                 <Select value={String(selectedStore)} onValueChange={(v) => setSelectedStore(Number(v))}>
