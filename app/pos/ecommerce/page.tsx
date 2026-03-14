@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -414,7 +415,7 @@ export default function EcommercePage() {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="text-sm font-bold text-gray-900 dark:text-white">
-                      ₱{((order.total ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(order.total ?? 0)}
                     </div>
                     <Badge className={`${statusColor} hidden sm:inline-flex`}>
                       {statusLabel}

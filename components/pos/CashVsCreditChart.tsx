@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { Banknote, CreditCard } from "lucide-react"
 import type { CashVsCredit } from "@/types/dashboard"
+import { centsToPesos, formatCurrency } from "@/lib/utils"
 
 type Props = {
   data?: CashVsCredit | null
@@ -12,9 +13,9 @@ type Props = {
 }
 
 export function CashVsCreditChart({ data, className }: Props) {
-  const cashAmount   = (data?.cash?.amount   ?? 0) / 100
-  const creditAmount = (data?.credit?.amount ?? 0) / 100
-  const total        = data?.total_amount ? data.total_amount / 100 : (cashAmount + creditAmount)
+  const cashAmount   = centsToPesos(data?.cash?.amount)
+  const creditAmount = centsToPesos(data?.credit?.amount)
+  const total        = data?.total_amount ? centsToPesos(data.total_amount) : (cashAmount + creditAmount)
 
   const cashPct   = data?.cash?.percentage   ?? (total > 0 ? (cashAmount / total) * 100 : 0)
   const creditPct = data?.credit?.percentage ?? (total > 0 ? (creditAmount / total) * 100 : 0)
@@ -98,7 +99,7 @@ export function CashVsCreditChart({ data, className }: Props) {
                 Total
               </span>
               <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                {total > 0 ? `₱${total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+                {total > 0 ? `₱${total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—"}
               </span>
             </div>
           </div>
@@ -107,7 +108,7 @@ export function CashVsCreditChart({ data, className }: Props) {
           {data?.outstanding_credit != null && data.outstanding_credit > 0 && (
             <div className="w-full text-center bg-rose-50 dark:bg-rose-500/10 rounded-lg py-1.5 px-3">
               <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-                Outstanding: ₱ {(data.outstanding_credit / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                Outstanding: {formatCurrency(data.outstanding_credit)}
               </span>
             </div>
           )}

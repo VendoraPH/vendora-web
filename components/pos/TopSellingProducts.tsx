@@ -13,6 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import type { TopProducts } from "@/types/dashboard"
+import { centsToPesos } from "@/lib/utils"
 
 type TopSellingProductsProps = {
   data?: TopProducts | null
@@ -29,7 +30,7 @@ export function TopSellingProducts({ data, variant = "default" }: TopSellingProd
   const products = data?.items.map(item => ({
     name: item.name,
     units: item.units_sold,
-    revenue: item.revenue / 100,
+    revenue: centsToPesos(item.revenue),
   })) || []
 
   // Calculate max revenue for percentage calculations

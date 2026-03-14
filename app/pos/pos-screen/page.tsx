@@ -129,7 +129,7 @@ const convertApiProductToPOS = (apiProduct: ApiProduct): POSProduct => ({
   name: apiProduct.name,
   sku: apiProduct.sku,
   barcode: apiProduct.barcode || "",
-  price: apiProduct.price,
+  price: apiProduct.price / 100, // API returns cents, POS works in pesos
   stock: apiProduct.stock,
   category: "general",
   unit: apiProduct.unit || "pc",

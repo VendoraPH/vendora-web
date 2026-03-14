@@ -9,14 +9,7 @@ import { useCartStore } from "@/store/useCartStore"
 import { Minus, Plus, ShoppingBag, Trash2, Truck, Shield, ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-
-// Helper for currency
-const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    }).format(price)
-}
+import { formatCurrency } from "@/lib/utils"
 
 export function CartSheet() {
     const { items, isOpen, setOpen, removeItem, updateQuantity, clearCart } = useCartStore()
@@ -102,7 +95,7 @@ export function CartSheet() {
                                                 <p className="text-xs text-gray-500">{item.category}</p>
                                             </div>
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="font-bold text-gray-900">{formatPrice(item.price)}</div>
+                                                <div className="font-bold text-gray-900">{formatCurrency(item.price)}</div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex items-center border-2 border-gray-200 rounded-lg h-9">
                                                         <button
@@ -161,7 +154,7 @@ export function CartSheet() {
                             <div className="space-y-2.5">
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Subtotal</span>
-                                    <span className="font-semibold text-gray-900">{formatPrice(subtotal)}</span>
+                                    <span className="font-semibold text-gray-900">{formatCurrency(subtotal)}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Shipping</span>
@@ -170,7 +163,7 @@ export function CartSheet() {
                                 <Separator className="my-3" />
                                 <div className="flex items-center justify-between">
                                     <span className="font-bold text-lg text-gray-900">Total</span>
-                                    <span className="font-black text-2xl text-gray-900">{formatPrice(total)}</span>
+                                    <span className="font-black text-2xl text-gray-900">{formatCurrency(total)}</span>
                                 </div>
                             </div>
                             <div className="space-y-3 pt-2">

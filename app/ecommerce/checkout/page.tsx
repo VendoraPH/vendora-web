@@ -13,14 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ArrowLeft, CreditCard, Truck, ShieldCheck, Lock, MapPin, Mail, Home } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-
-// Helper for currency
-const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP',
-    }).format(price)
-}
+import { formatCurrency, centsToPesos } from "@/lib/utils"
 
 export default function CheckoutPage() {
     const router = useRouter()
@@ -47,9 +40,9 @@ export default function CheckoutPage() {
         cvv: "",
     })
 
-    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0)
-    const shipping = subtotal > 500 ? 0 : 99
-    const tax = subtotal * 0.12 // 12% VAT
+    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0) // cents
+    const shipping = subtotal > 50000 ? 0 : 9900 // Free over ₱500, else ₱99 (in cents)
+    const tax = subtotal * 0.12 // 12% VAT (in cents)
     const total = subtotal + shipping + tax
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +102,7 @@ export default function CheckoutPage() {
             clearCart()
             const params = new URLSearchParams({
                 orderId: orderId ? String(orderId) : "",
-                total: total.toFixed(2),
+                total: centsToPesos(total).toFixed(2),
                 items: String(items.length),
             })
             router.push(`/ecommerce/order-success?${params.toString()}`)
@@ -423,7 +416,7 @@ export default function CheckoutPage() {
                                             Processing...
                                         </span>
                                     ) : (
-                                        `Place Order \u2022 ${formatPrice(total)}`
+                                        `Place Order \u2022 ${formatCurrency(total)}`
                                     )}
                                 </Button>
                             </div>
@@ -454,7 +447,7 @@ export default function CheckoutPage() {
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-semibold text-sm text-gray-900 line-clamp-2">{item.name}</h4>
                                             <p className="text-xs text-gray-500 mt-0.5">{item.category}</p>
-                                            <p className="font-bold text-gray-900 mt-1">{formatPrice(item.price * item.quantity)}</p>
+                                            <p className="font-bold text-gray-900 mt-1">{formatCurrency(item.price * item.quantity)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -466,20 +459,20 @@ export default function CheckoutPage() {
                             <div className="space-y-3 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Subtotal</span>
-                                    <span className="font-semibold text-gray-900">{formatPrice(subtotal)}</span>
+                                    <span className="font-semibold text-gray-900">{formatCurrency(subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Shipping</span>
-                                    <span className="font-semibold text-green-600">{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                                    <span className="font-semibold text-green-600">{shipping === 0 ? "Free" : formatCurrency(shipping)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">VAT (12%)</span>
-                                    <span className="font-semibold text-gray-900">{formatPrice(tax)}</span>
+                                    <span className="font-semibold text-gray-900">{formatCurrency(tax)}</span>
                                 </div>
                                 <Separator className="my-3" />
                                 <div className="flex justify-between text-lg">
                                     <span className="font-bold text-gray-900">Total</span>
-                                    <span className="font-black text-gray-900">{formatPrice(total)}</span>
+                                    <span className="font-black text-gray-900">{formatCurrency(total)}</span>
                                 </div>
                             </div>
 
@@ -513,7 +506,7 @@ export default function CheckoutPage() {
                                             Processing...
                                         </span>
                                     ) : (
-                                        `Place Order \u2022 ${formatPrice(total)}`
+                                        `Place Order \u2022 ${formatCurrency(total)}`
                                     )}
                                 </Button>
                             </div>

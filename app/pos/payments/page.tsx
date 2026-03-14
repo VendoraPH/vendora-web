@@ -22,12 +22,9 @@ import { useLocalPayments } from "@/hooks/use-local-data"
 import { localDb } from "@/lib/local-first-service"
 import type { LocalPayment } from "@/lib/db"
 import { getOnlineStatus } from "@/lib/sync-service"
+import { formatCurrency } from "@/lib/utils"
 
 // ==================== Helpers ====================
-
-/** Amounts stored in cents — convert to pesos for display */
-const formatCurrency = (amountCents: number) =>
-  `₱${((amountCents ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const formatDateTime = (value?: string) => {
   if (!value) return "—"
