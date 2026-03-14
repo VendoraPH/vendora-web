@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useCartStore } from "@/store/useCartStore"
 import { useTheme } from "next-themes"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { storeService } from "@/services"
 import { BuyerAuthModal, BUYER_TOKEN_KEY, BUYER_USER_KEY, type BuyerUser } from "@/components/ecommerce/BuyerAuthModal"
 
 export function Navbar() {
@@ -27,6 +28,7 @@ export function Navbar() {
     const [buyer, setBuyer] = useState<BuyerUser | null>(null)
     const [showAuthModal, setShowAuthModal] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const [foodMenuEnabled, setFoodMenuEnabled] = useState(true)
     const cartCount = items.length
 
     useEffect(() => {
@@ -36,6 +38,20 @@ export function Navbar() {
             if (stored) setBuyer(JSON.parse(stored))
         } catch { /* ignore */ }
     }, [])
+
+    // Fetch store settings to check food_menu_enabled
+    useEffect(() => {
+        const pathSegments = pathname.split("/")
+        const slug = pathSegments[2]
+        if (!slug) return
+        storeService.getBySlug(slug)
+            .then((store) => {
+                if (store.settings?.food_menu_enabled === false) {
+                    setFoodMenuEnabled(false)
+                }
+            })
+            .catch(() => { /* silently fail — default to showing */ })
+    }, [pathname])
 
     // Listen for storage changes (login/logout from the food-menu page)
     useEffect(() => {
@@ -86,10 +102,16 @@ export function Navbar() {
     const pathSegments = pathname.split("/")
     const storeCode = pathSegments[2] || "store"
 
-    const navLinks = [
-        { href: `/ecommerce/${storeCode}/products`, label: "Shop", icon: null },
-        { href: `/ecommerce/${storeCode}/food-menu`, label: "Food Menu", icon: UtensilsCrossed },
-    ]
+    const navLinks = useMemo(() => {
+        const links = [
+            { href: `/ecommerce/${storeCode}/products`, label: "Shop", icon: null },
+            { href: `/ecommerce/${storeCode}/food-menu`, label: "Food Menu", icon: UtensilsCrossed },
+        ]
+        if (!foodMenuEnabled) {
+            return links.filter((link) => link.label !== "Food Menu")
+        }
+        return links
+    }, [storeCode, foodMenuEnabled])
 
     return (
         <>

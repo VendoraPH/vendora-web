@@ -50,6 +50,7 @@ export default function EcommercePage() {
   const [storeName, setStoreName] = useState("")
   const [storeTagline, setStoreTagline] = useState("")
   const [designSaving, setDesignSaving] = useState(false)
+  const [foodMenuEnabled, setFoodMenuEnabled] = useState(true)
 
   const fetchData = async () => {
     setLoading(true)
@@ -64,6 +65,7 @@ export default function EcommercePage() {
         setSlugInput(firstStore.slug || "")
         setStoreName(firstStore.name || "")
         setStoreTagline((firstStore as any).settings?.tagline || "")
+        setFoodMenuEnabled(firstStore.settings?.food_menu_enabled ?? true)
         try { setProducts(await storeService.getProducts(firstStore.id, { per_page: 500 })) } catch {}
         try {
           const ord = await orderService.getAll({ per_page: 10, channel: 'online' })
@@ -451,6 +453,29 @@ export default function EcommercePage() {
             <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Store Features</h2>
           </div>
           <div className="space-y-4">
+            {/* Food Menu — functional toggle */}
+            <div className="flex items-center justify-between py-3 border-b dark:border-[#2d1b69]">
+              <div>
+                <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Food Menu</div>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Show Food Menu in navigation and store page</p>
+              </div>
+              <Switch
+                checked={foodMenuEnabled}
+                onCheckedChange={async (enabled) => {
+                  setFoodMenuEnabled(enabled)
+                  if (store) {
+                    try {
+                      const updatedSettings = { ...store.settings, food_menu_enabled: enabled }
+                      await storeService.update(store.id, { settings: updatedSettings })
+                      setStore({ ...store, settings: updatedSettings } as any)
+                    } catch {
+                      setFoodMenuEnabled(!enabled)
+                    }
+                  }
+                }}
+              />
+            </div>
+            {/* Decorative toggles */}
             {[
               { name: "Product Search", desc: "Allow customers to search products", checked: true },
               { name: "Shopping Cart", desc: "Enable cart functionality", checked: true },
