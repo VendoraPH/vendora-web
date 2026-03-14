@@ -707,7 +707,7 @@ export default function VendoraPOS() {
         customer_id: customerId ?? null,
         customer_name: customerName,
         ordered_at: new Date().toISOString().split('T')[0] || "",
-        status: isCredit ? 'pending' : 'completed',
+        status: 'completed',
         items: cart.map(item => ({
           product_id: Number(item.id),
           product_name: item.name,
@@ -754,7 +754,7 @@ export default function VendoraPOS() {
         customer_id: customerId || 1,
         customer_name: customerName,
         ordered_at: txnDate,
-        status: isCredit ? 'pending' : 'completed',
+        status: 'completed',
         total: Math.round(totals.total * 100),
         subtotal: Math.round(totals.subtotal * 100),
         tax: Math.round(totals.tax * 100),
@@ -787,7 +787,7 @@ export default function VendoraPOS() {
           customer_name: customerName,
           amount: Math.round((isCredit ? totals.total : paid) * 100),
           method: (isCredit || primaryMethod === "credit") ? "cash" : primaryMethod,
-          status: isCredit ? 'pending' : 'completed',
+          status: 'completed',
           paid_at: paidAtStr,
         }).catch(err => console.error('Failed to write payment to local DB:', err));
       }
