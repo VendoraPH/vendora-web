@@ -1003,7 +1003,7 @@ export default function VendoraPOS() {
   }
 
   return (
-    <div className={`min-h-screen ${THEME.bg} overflow-auto lg:overflow-hidden`}>
+    <div className={`h-[calc(100vh-4rem)] ${THEME.bg} overflow-auto lg:overflow-hidden flex flex-col`}>
       <header className="border-b border-gray-200 dark:border-white/10 bg-white/90 dark:bg-[#1f1633]/70 backdrop-blur py-3 lg:h-[84px] lg:py-0">
         <div className="px-4 sm:px-6 flex flex-col gap-3 lg:h-full lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 min-w-0 w-full lg:w-auto">
@@ -1085,7 +1085,7 @@ export default function VendoraPOS() {
         </div>
       </header>
 
-      <main className="h-auto lg:h-[calc(100vh-84px)] px-4 py-4 lg:px-6 lg:overflow-hidden">
+      <main className="h-auto lg:flex-1 lg:min-h-0 px-4 py-4 lg:px-6 lg:overflow-hidden">
         <Suspense fallback={null}>
           <DesktopPOSLayout {...screenProps} />
         </Suspense>
