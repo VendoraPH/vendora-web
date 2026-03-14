@@ -703,8 +703,9 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                 const headers: Record<string, string> = {}
                 if (buyerToken) headers["Authorization"] = `Bearer ${buyerToken}`
 
+                const todayDate = new Date().toISOString().split("T")[0]
                 const response = await fetch(
-                    `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu?per_page=500`,
+                    `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu?per_page=500&date=${todayDate}`,
                     { headers }
                 )
                 if (response.ok) {
