@@ -61,4 +61,6 @@ export interface OrderFilters {
   endDate?: Date
   customerId?: string
   search?: string
+  channel?: 'online' | 'pos'
+  per_page?: number
 }

@@ -19,6 +19,7 @@ export interface ApiStore {
     address?: string
     phone?: string
     is_active: boolean
+    settings?: Record<string, any>
     created_at?: string
     updated_at?: string
 }
@@ -31,6 +32,7 @@ export interface StorePayload {
     slug?: string
     address?: string
     is_active?: boolean
+    settings?: Record<string, any>
 }
 
 /**

@@ -47,6 +47,9 @@ export default function EcommercePage() {
   const [isEditingSlug, setIsEditingSlug] = useState(false)
   const [slugSaving, setSlugSaving] = useState(false)
   const [slugError, setSlugError] = useState<string | null>(null)
+  const [storeName, setStoreName] = useState("")
+  const [storeTagline, setStoreTagline] = useState("")
+  const [designSaving, setDesignSaving] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
@@ -59,9 +62,11 @@ export default function EcommercePage() {
       if (firstStore) {
         setStoreActive(firstStore.is_active)
         setSlugInput(firstStore.slug || "")
+        setStoreName(firstStore.name || "")
+        setStoreTagline((firstStore as any).settings?.tagline || "")
         try { setProducts(await storeService.getProducts(firstStore.id, { per_page: 500 })) } catch {}
         try {
-          const ord = await orderService.getAll({ per_page: 10 } as any)
+          const ord = await orderService.getAll({ per_page: 10, channel: 'online' })
           setRecentOrders(Array.isArray(ord) ? ord : (ord as any).data || [])
         } catch {}
       }
@@ -117,6 +122,23 @@ export default function EcommercePage() {
       setSlugError(msg)
     } finally {
       setSlugSaving(false)
+    }
+  }
+
+  const handleDesignSave = async () => {
+    if (!store) return
+    setDesignSaving(true)
+    try {
+      await storeService.update(store.id, {
+        name: storeName,
+        settings: { ...(store as any).settings, tagline: storeTagline },
+      } as any)
+      setStore({ ...store, name: storeName, settings: { ...(store as any).settings, tagline: storeTagline } } as any)
+      Swal.fire({ icon: "success", title: "Design Saved", text: "Your storefront design has been updated.", timer: 2000, showConfirmButton: false })
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Error", text: err?.response?.data?.message || "Failed to save design settings." })
+    } finally {
+      setDesignSaving(false)
     }
   }
 
@@ -342,6 +364,58 @@ export default function EcommercePage() {
         </div>
       </div>
 
+      {/* Recent Online Orders */}
+      <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-6">Recent Online Orders</h2>
+        {recentOrders.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-[#b4b4d0] text-center py-8">No online orders found</p>
+        ) : (
+          <div className="space-y-3">
+            {recentOrders.map((order) => {
+              const statusColor = order.status === "completed"
+                ? "bg-green-100 text-green-800"
+                : order.status === "pending"
+                  ? "bg-purple-100 text-purple-800"
+                  : "bg-blue-100 text-blue-800"
+              const statusLabel = order.status
+                ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
+                : "Unknown"
+              const customerName = typeof order.customer === "object"
+                ? order.customer?.name || "Customer"
+                : order.customer || "Customer"
+              const orderDate = order.ordered_at || order.created_at || ""
+
+              return (
+                <div key={order.id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-[#1a1a35] rounded-lg">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="flex-shrink-0 bg-purple-100 p-1.5 sm:p-2 rounded">
+                      <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {order.order_number || `#${order.id}`}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-[#b4b4d0] mt-0.5 sm:mt-1">
+                        {customerName}
+                        {orderDate && <span className="hidden sm:inline"> &bull; {orderDate}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="text-sm font-bold text-gray-900 dark:text-white">
+                      ₱{((order.total ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <Badge className={`${statusColor} hidden sm:inline-flex`}>
+                      {statusLabel}
+                    </Badge>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Store Settings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Storefront Design */}
@@ -355,30 +429,16 @@ export default function EcommercePage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Store Name</label>
-              <Input defaultValue={store?.name || ""} />
+              <Input value={storeName} onChange={(e) => setStoreName(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Store Tagline</label>
-              <Input defaultValue="Your trusted neighborhood store" />
+              <Input value={storeTagline} onChange={(e) => setStoreTagline(e.target.value)} placeholder="Your trusted neighborhood store" />
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-[#e0e0f0] mb-2 block">Theme Color</label>
-              <div className="flex gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-lg border-2 border-purple-800 cursor-pointer"></div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-lg border-2 border-gray-200 cursor-pointer"></div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-600 rounded-lg border-2 border-gray-200 cursor-pointer"></div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-600 rounded-lg border-2 border-gray-200 cursor-pointer"></div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-600 rounded-lg border-2 border-gray-200 cursor-pointer"></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-3 border-t dark:border-[#2d1b69]">
-              <div>
-                <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Dark Mode</div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-[#b4b4d0]">Enable dark theme for your store</p>
-              </div>
-              <Switch />
-            </div>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700">Save Design</Button>
+            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleDesignSave} disabled={designSaving}>
+              {designSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Design
+            </Button>
           </div>
         </div>
 
@@ -449,57 +509,6 @@ export default function EcommercePage() {
         </div>
       </div>
 
-      {/* Recent Online Orders */}
-      <div className="bg-white dark:bg-[#13132a] rounded-lg border border-gray-200 dark:border-[#2d1b69] shadow-sm p-4 sm:p-6">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-6">Recent Online Orders</h2>
-        {recentOrders.length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-[#b4b4d0] text-center py-8">No orders found</p>
-        ) : (
-          <div className="space-y-3">
-            {recentOrders.map((order) => {
-              const statusColor = order.status === "completed"
-                ? "bg-green-100 text-green-800"
-                : order.status === "pending"
-                  ? "bg-purple-100 text-purple-800"
-                  : "bg-blue-100 text-blue-800"
-              const statusLabel = order.status
-                ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
-                : "Unknown"
-              const customerName = typeof order.customer === "object"
-                ? order.customer?.name || "Customer"
-                : order.customer || "Customer"
-              const orderDate = order.ordered_at || order.created_at || ""
-
-              return (
-                <div key={order.id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-[#1a1a35] rounded-lg">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="flex-shrink-0 bg-purple-100 p-1.5 sm:p-2 rounded">
-                      <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {order.order_number || `#${order.id}`}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-[#b4b4d0] mt-0.5 sm:mt-1">
-                        {customerName}
-                        {orderDate && <span className="hidden sm:inline"> &bull; {orderDate}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="text-sm font-bold text-gray-900 dark:text-white">
-                      ₱{((order.total ?? 0) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <Badge className={`${statusColor} hidden sm:inline-flex`}>
-                      {statusLabel}
-                    </Badge>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
