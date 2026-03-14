@@ -135,6 +135,14 @@ export default function POSLayout({ children }: { children: ReactNode }) {
       } catch { /* silently fail — defaults to showing all items */ }
     }
     fetchStoreSettings()
+
+    // Listen for real-time store settings changes from the ecommerce page
+    const handleSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) setStoreSettings(detail)
+    }
+    window.addEventListener("store-settings-changed", handleSettingsChanged)
+    return () => window.removeEventListener("store-settings-changed", handleSettingsChanged)
   }, [])
 
   // Auto-collapse sidebar when navigating to POS screen for maximum width

@@ -468,6 +468,7 @@ export default function EcommercePage() {
                       const updatedSettings = { ...store.settings, food_menu_enabled: enabled }
                       await storeService.update(store.id, { settings: updatedSettings })
                       setStore({ ...store, settings: updatedSettings } as any)
+                      window.dispatchEvent(new CustomEvent("store-settings-changed", { detail: updatedSettings }))
                     } catch {
                       setFoodMenuEnabled(!enabled)
                     }
