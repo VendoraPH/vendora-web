@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2, Truck } from "lucide-react"
+import { Package, Plus, ShoppingBag, Wallet, ShoppingCart, Loader2, Truck, CreditCard } from "lucide-react"
 
 const PesoSign = ({ className }: { className?: string }) => (
   <span className={`font-bold flex items-center justify-center ${className ?? ''}`}>₱</span>
@@ -108,6 +108,13 @@ export default function DesktopDashboard() {
       icon: PesoSign,
     },
     {
+      title: "Total Credit",
+      value: formatCurrency(kpis.total_credit),
+      change: "Unpaid credit",
+      changeType: "label" as const,
+      icon: CreditCard,
+    },
+    {
       title: "Total Orders",
       value: kpis.total_orders.toString(),
       ...formatChange(kpis.total_orders_change),
@@ -116,7 +123,7 @@ export default function DesktopDashboard() {
     {
       title: "Net Revenue",
       value: formatCurrency(kpis.net_revenue),
-      change: "After discount",
+      change: "Total markup",
       changeType: "label" as const,
       icon: Wallet,
     },

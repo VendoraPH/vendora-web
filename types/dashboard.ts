@@ -4,6 +4,7 @@ export interface DashboardKPIs {
     start_date: string
     end_date: string
     total_sales: number
+    total_credit: number
     total_orders: number
     net_revenue: number
     average_order_value: number
