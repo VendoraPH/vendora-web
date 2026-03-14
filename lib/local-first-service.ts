@@ -677,7 +677,7 @@ const orders = {
           ? rawCustomer
           : rawCustomer?.name || (o as any).customer_name || 'Walk-in';
 
-        // API returns monetary values in cents — convert to pesos for local display
+        // API returns monetary values in raw cents — store as-is; formatCurrency() handles /100
         await db.orders.put({
           id: orderId,
           _status: 'synced',
@@ -687,11 +687,11 @@ const orders = {
           customer_name: customerName,
           ordered_at: (o as any).ordered_at || (o as any).created_at,
           status: (o as any).status || 'pending',
-          total: Number((o as any).total || 0) / 100,
-          subtotal: Number((o as any).subtotal || 0) / 100,
-          tax: Number((o as any).tax || 0) / 100,
-          discount: Number((o as any).discount || 0) / 100,
-          delivery_fee: Number((o as any).delivery_fee || 0) / 100,
+          total: Number((o as any).total || 0),
+          subtotal: Number((o as any).subtotal || 0),
+          tax: Number((o as any).tax || 0),
+          discount: Number((o as any).discount || 0),
+          delivery_fee: Number((o as any).delivery_fee || 0),
           payment_method: (o as any).payment_method,
           items_count: Array.isArray((o as any).items)
             ? (o as any).items.length
