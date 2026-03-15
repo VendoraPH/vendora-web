@@ -328,7 +328,7 @@ function mapApiToFoodItem(item: ApiFoodMenuItem): FoodItem {
         id: String(item.id),
         name: item.name,
         description: item.description,
-        price: item.price,
+        price: item.price / 100,
         category: mapCategoryToMeal(item.category),
         image: item.image || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
         totalQty: item.total_servings,

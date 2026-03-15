@@ -41,6 +41,7 @@ import { foodMenuService } from "@/services"
 import type { FoodMenuCreatePayload, FoodMenuItem as ApiFoodMenuItem, FoodMenuReservation as ApiFoodMenuReservation } from "@/services"
 import { useOfflineData } from "@/hooks/use-offline-data"
 import { StaleDataBanner } from "@/components/pos/StaleDataBanner"
+import { formatCurrency } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -347,7 +348,7 @@ export default function FoodMenuPage() {
       name: item.name,
       description: item.description,
       category: item.category,
-      price: String(item.price),
+      price: String(item.price / 100),
       totalServings: String(item.totalServings),
       isAvailable: item.isAvailable,
     })
@@ -753,7 +754,7 @@ export default function FoodMenuPage() {
 
                         {/* Price */}
                         <td className="px-4 py-3 text-right font-bold text-[#7C3AED]">
-                          ₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                          {formatCurrency(item.price)}
                         </td>
 
                         {/* Total Servings */}
@@ -950,7 +951,7 @@ export default function FoodMenuPage() {
                           <span>{item.totalServings} servings</span>
                         </div>
                         <span className="text-base font-bold text-[#7C3AED]">
-                          ₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                          {formatCurrency(item.price)}
                         </span>
                       </div>
 
@@ -1063,7 +1064,7 @@ export default function FoodMenuPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.menuItemName}</td>
                         <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{r.servings}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#7C3AED]">₱{r.total.toLocaleString("en-PH")}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-[#7C3AED]">{formatCurrency(r.total)}</td>
                         <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{r.createdAt}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(r.status)}`}>
@@ -1097,7 +1098,7 @@ export default function FoodMenuPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-400">{r.createdAt}</span>
-                      <span className="font-bold text-[#7C3AED]">₱{r.total.toLocaleString("en-PH")}</span>
+                      <span className="font-bold text-[#7C3AED]">{formatCurrency(r.total)}</span>
                     </div>
                     {r.notes && (
                       <p className="text-xs text-gray-400 border-t border-gray-100 dark:border-white/5 pt-2">Note: {r.notes}</p>
