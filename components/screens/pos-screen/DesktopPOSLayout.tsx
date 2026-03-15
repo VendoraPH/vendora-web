@@ -462,8 +462,9 @@ export default function DesktopPOSLayout(props: POSScreenProps) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="walkin">Walk in customer</SelectItem>
-                          <SelectItem value="saved1">Mark S.</SelectItem>
-                          <SelectItem value="saved2">Liza R.</SelectItem>
+                          {customers?.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

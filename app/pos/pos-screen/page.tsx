@@ -228,7 +228,7 @@ export default function VendoraPOS() {
       console.error("Failed to save cart to localStorage", e);
     }
   }, [cart]);
-  const [customer, setCustomer] = useState<"walkin" | "saved1" | "saved2">("walkin");
+  const [customer, setCustomer] = useState<string>("walkin");
   const [notes, setNotes] = useState("");
 
   // Pricing and payment
@@ -660,12 +660,12 @@ export default function VendoraPOS() {
         // Walk-in orders don't need a customer record — backend accepts null customer_id
         customerId = null;
         customerName = "Walk-in Customer";
-      } else if (customer === "saved1" && customers[0]) {
-        customerId = customers[0].id;
-        customerName = customers[0].name;
-      } else if (customer === "saved2" && customers[1]) {
-        customerId = customers[1].id;
-        customerName = customers[1].name;
+      } else {
+        const selected = customers.find(c => c.id === Number(customer));
+        if (selected) {
+          customerId = selected.id;
+          customerName = selected.name;
+        }
       }
 
       if (!customerId && customer !== "walkin" && !isCredit) throw new Error("Customer selection required");
@@ -1038,7 +1038,7 @@ export default function VendoraPOS() {
                   </SelectContent>
                 </Select>
               )}
-              <Pill>{customer === "walkin" ? "Walk in" : customer === "saved1" ? customers[0]?.name || "Customer 1" : customers[1]?.name || "Customer 2"}</Pill>
+              <Pill>{customer === "walkin" ? "Walk in" : customers.find(c => c.id === Number(customer))?.name || "Customer"}</Pill>
             </div>
           </div>
 
