@@ -36,6 +36,7 @@ import {
   Image as ImageIcon,
   X,
   Check,
+  Clock,
 } from "lucide-react"
 import Swal from "sweetalert2"
 import { foodMenuService } from "@/services"
@@ -558,10 +559,32 @@ export default function FoodMenuPage() {
     )
   }
 
+  // ── Menu open/closed check (client-side, informational only) ──────────────
+  const [menuIsOpen, setMenuIsOpen] = useState(true)
+  useEffect(() => {
+    const check = () => {
+      const now = new Date()
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+      setMenuIsOpen(hhmm >= "06:00" && hhmm < "17:00")
+    }
+    check()
+    const interval = setInterval(check, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <StaleDataBanner isStale={isStale} lastSyncedAt={lastSyncedAt} />
+
+      {!menuIsOpen && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
+          <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            Public reservations are currently closed (6:00 AM – 5:00 PM)
+          </p>
+        </div>
+      )}
 
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -394,11 +394,13 @@ function FoodCard({
     reserved,
     onReserve,
     onRemove,
+    disabled,
 }: {
     item: FoodItem
     reserved: ReservationItem | undefined
     onReserve: (item: FoodItem) => void
     onRemove: (id: string) => void
+    disabled?: boolean
 }) {
     const status = getAvailabilityStatus(item)
     const pct = Math.round(((item.totalQty - item.availableQty) / item.totalQty) * 100)
@@ -493,10 +495,15 @@ function FoodCard({
                     ) : (
                         <button
                             onClick={() => onReserve(item)}
-                            className="flex items-center gap-1.5 h-10 sm:h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white active:scale-95 transition-all shadow-sm shadow-[#7C3AED]/20"
+                            disabled={disabled}
+                            className={`flex items-center gap-1.5 h-10 sm:h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-sm ${
+                                disabled
+                                    ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                                    : "bg-[#7C3AED] hover:bg-[#6D28D9] text-white active:scale-95 shadow-[#7C3AED]/20"
+                            }`}
                         >
-                            <Plus className="w-4 h-4" />
-                            Reserve
+                            {disabled ? <Lock className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            {disabled ? "Closed" : "Reserve"}
                         </button>
                     )}
                 </div>
@@ -870,6 +877,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
     const [foodItems, setFoodItems] = useState<FoodItem[]>(FOOD_ITEMS)
     const [isLoadingMenu, setIsLoadingMenu] = useState(true)
     const [isSubmittingReservation, setIsSubmittingReservation] = useState(false)
+    const [menuIsOpen, setMenuIsOpen] = useState(true)
 
     const heroReveal = useScrollReveal()
     const menuReveal = useScrollReveal()
@@ -897,6 +905,9 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                     const raw: ApiFoodMenuItem[] = json?.data?.data ?? json?.data ?? json ?? []
                     if (Array.isArray(raw) && raw.length > 0) {
                         setFoodItems(raw.map(mapApiToFoodItem))
+                    }
+                    if (typeof json?.menu_is_open === "boolean") {
+                        setMenuIsOpen(json.menu_is_open)
                     }
                 }
             } catch {
@@ -947,6 +958,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
     })
 
     const handleReserve = (item: FoodItem) => {
+        if (!menuIsOpen) return
         if (!buyer) {
             setShowAuthModal(true)
             return
@@ -1176,6 +1188,18 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                 </div>
             </div>
 
+            {/* ── Menu Closed Banner ────────────────────────────────── */}
+            {!menuIsOpen && (
+                <div className="w-full bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700/50">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                            Today&apos;s food menu is closed. New items available tomorrow from 6:00 AM.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Main Content ─────────────────────────────────────── */}
             <div
                 ref={menuReveal.ref}
@@ -1268,6 +1292,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                                             reserved={reservations.find((r) => r.food.id === item.id)}
                                             onReserve={handleReserve}
                                             onRemove={handleRemove}
+                                            disabled={!menuIsOpen}
                                         />
                                     ))}
                                 </div>
@@ -1275,7 +1300,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                         </div>
 
                         {/* ── Right: Reservation Panel (desktop) ──────── */}
-                        <aside className="hidden lg:flex flex-col w-72 shrink-0">
+                        {menuIsOpen && <aside className="hidden lg:flex flex-col w-72 shrink-0">
                             <div className="sticky top-24 rounded-2xl bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06] shadow-sm dark:shadow-none overflow-hidden" style={{ maxHeight: "calc(100vh - 7rem)" }}>
                                 <ReservationPanel
                                     items={reservations}
@@ -1285,14 +1310,14 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                                     isSubmitting={isSubmittingReservation}
                                 />
                             </div>
-                        </aside>
+                        </aside>}
                     </div>
                     )}
                 </div>
             </div>
 
             {/* ── Mobile floating reserve button ───────────────────── */}
-            {isMounted && viewMode === "menu" && (
+            {isMounted && menuIsOpen && viewMode === "menu" && (
                 <div className="lg:hidden fixed bottom-6 right-4 z-40">
                     <button
                         onClick={() => setShowPanel(true)}
@@ -1310,7 +1335,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
             )}
 
             {/* ── Mobile reservation bottom sheet ──────────────────── */}
-            {isMounted && showPanel && viewMode === "menu" && (
+            {isMounted && menuIsOpen && showPanel && viewMode === "menu" && (
                 <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPanel(false)} />
                     <div className="relative bg-white dark:bg-[#110228] rounded-t-3xl border-t border-gray-100 dark:border-white/[0.06] shadow-2xl" style={{ maxHeight: "80vh" }}>
