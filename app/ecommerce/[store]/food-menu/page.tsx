@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useRef, useEffect, use } from "react"
+import { useState, useRef, useEffect, useCallback, use } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {
     UtensilsCrossed, Coffee, Sandwich, Soup,
     Flame, Leaf, Search, ShoppingBag,
     Plus, Minus, Check, Users, X, CalendarDays,
-    AlertTriangle, User2, LogOut, Loader2,
+    User2, LogOut, Loader2,
+    Clock, Lock, ArrowLeft, RefreshCw, Trash2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,27 @@ type FoodItem = {
 type ReservationItem = {
     food: FoodItem
     qty: number
+}
+
+type MyReservation = {
+    id: number
+    food_menu_item_id: number
+    reservation_batch_id: string | null
+    buyer_user_id: number | null
+    customer_name: string
+    customer_phone: string
+    servings: number
+    status: "pending" | "confirmed" | "cancelled" | "completed"
+    is_editable: boolean
+    notes: string | null
+    created_at: string
+    food_menu_item?: {
+        id: number
+        name: string
+        price: number
+        image: string | null
+        category: string
+    }
 }
 
 // BuyerUser, BUYER_TOKEN_KEY, BUYER_USER_KEY imported from @/components/ecommerce/BuyerAuthModal
@@ -598,72 +620,233 @@ function ReservationPanel({
 
 
 // ---------------------------------------------------------------------------
-// Confirmation modal
+// Status badge helper
 // ---------------------------------------------------------------------------
-function ConfirmationModal({ items, buyer, onClose }: { items: ReservationItem[]; buyer: BuyerUser | null; onClose: () => void }) {
-    const total = items.reduce((sum, r) => sum + r.food.price * r.qty, 0)
-    const now = new Date()
-    const refNo = `RSV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(Math.random() * 9000 + 1000)}`
-    const initials = buyer ? buyer.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "?"
+function StatusBadge({ status }: { status: MyReservation["status"] }) {
+    const styles = {
+        pending: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+        confirmed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+        cancelled: "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+        completed: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+    }
+    const icons = {
+        pending: <Clock className="w-3 h-3" />,
+        confirmed: <Lock className="w-3 h-3" />,
+        cancelled: <X className="w-3 h-3" />,
+        completed: <Check className="w-3 h-3" />,
+    }
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles[status]}`}>
+            {icons[status]}
+            {status}
+        </span>
+    )
+}
+
+
+// ---------------------------------------------------------------------------
+// My Reservations View
+// ---------------------------------------------------------------------------
+function MyReservationsView({
+    reservations,
+    isLoading,
+    onBack,
+    onRefresh,
+    onUpdateServings,
+    onCancel,
+}: {
+    reservations: MyReservation[]
+    isLoading: boolean
+    onBack: () => void
+    onRefresh: () => void
+    onUpdateServings: (id: number, servings: number) => void
+    onCancel: (id: number) => void
+}) {
+    // Group by batch_id
+    const grouped = reservations.reduce<Record<string, MyReservation[]>>((acc, r) => {
+        const key = r.reservation_batch_id || `single-${r.id}`
+        if (!acc[key]) acc[key] = []
+        acc[key].push(r)
+        return acc
+    }, {})
+
+    const batches = Object.entries(grouped).sort((a, b) => {
+        const dateA = a[1][0]?.created_at || ""
+        const dateB = b[1][0]?.created_at || ""
+        return dateB.localeCompare(dateA)
+    })
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white dark:bg-[#110228] rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-white/[0.06]">
-                {/* Success header */}
-                <div className="px-6 pt-8 pb-6 text-center" style={{ background: "linear-gradient(135deg,#110228,#2E0F5F,#7C3AED)" }}>
-                    <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4">
-                        <Check className="w-8 h-8 text-white" />
-                    </div>
-                    <h2 className="text-xl font-black text-white mb-1">Reservation Confirmed!</h2>
-                    <p className="text-sm text-purple-200/70">Your food reservation has been submitted.</p>
-                    <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20">
-                        <span className="text-xs font-bold text-white/80">Ref #</span>
-                        <span className="text-xs font-black text-white">{refNo}</span>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="w-9 h-9 rounded-xl bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/[0.08] transition-colors">
+                        <ArrowLeft className="w-4 h-4 text-gray-600 dark:text-white/60" />
+                    </button>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 dark:text-white">My Reservations</h2>
+                        <p className="text-xs text-gray-500 dark:text-white/40">{reservations.length} reservation{reservations.length !== 1 ? "s" : ""}</p>
                     </div>
                 </div>
-
-                {/* Buyer info card */}
-                {buyer && (
-                    <div className="mx-6 mt-5 flex items-center gap-3 p-3 rounded-xl bg-[#7C3AED]/5 border border-[#7C3AED]/15">
-                        <div className="w-10 h-10 rounded-xl bg-[#7C3AED] flex items-center justify-center text-white font-black text-sm shrink-0">
-                            {initials}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{buyer.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-white/40">{buyer.email}</p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Items list */}
-                <div className="px-6 py-5 space-y-2.5 max-h-48 overflow-y-auto">
-                    {items.map((r) => (
-                        <div key={r.food.id} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-md bg-[#7C3AED]/10 text-[#7C3AED] font-bold text-[10px] flex items-center justify-center">
-                                    {r.qty}×
-                                </span>
-                                <span className="text-gray-700 dark:text-white/70">{r.food.name}</span>
-                            </div>
-                            <span className="font-semibold text-gray-900 dark:text-white">₱{(r.food.price * r.qty).toFixed(0)}</span>
-                        </div>
-                    ))}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/[0.06]">
-                        <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                        <span className="text-lg font-black text-[#7C3AED] dark:text-[#a78bfa]">₱{total.toFixed(0)}</span>
-                    </div>
-                </div>
-
-                <div className="px-6 pb-6">
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 mb-4">
-                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                        <p className="text-xs text-amber-700 dark:text-amber-400">Please pick up your order at the designated counter on time.</p>
-                    </div>
-                    <Button onClick={onClose} className="w-full h-11 rounded-xl font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
-                        Done
-                    </Button>
-                </div>
+                <button
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="w-9 h-9 rounded-xl bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+                >
+                    <RefreshCw className={`w-4 h-4 text-gray-600 dark:text-white/60 ${isLoading ? "animate-spin" : ""}`} />
+                </button>
             </div>
+
+            {isLoading && reservations.length === 0 ? (
+                <div className="rounded-2xl p-12 text-center bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06]">
+                    <Loader2 className="w-8 h-8 mx-auto mb-3 text-[#7C3AED] animate-spin" />
+                    <p className="text-sm text-gray-500 dark:text-white/40">Loading reservations...</p>
+                </div>
+            ) : reservations.length === 0 ? (
+                <div className="rounded-2xl p-12 text-center bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06]">
+                    <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-white/20" />
+                    <p className="text-base font-semibold text-gray-900 dark:text-white mb-1">No reservations yet</p>
+                    <p className="text-sm text-gray-500 dark:text-white/40">Reserve items from the menu to see them here</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {batches.map(([batchId, items]) => {
+                        const date = items[0]?.created_at ? new Date(items[0].created_at) : null
+                        const total = items.reduce((sum, r) => {
+                            const price = r.food_menu_item?.price ? r.food_menu_item.price / 100 : 0
+                            return sum + price * r.servings
+                        }, 0)
+
+                        return (
+                            <div key={batchId} className="rounded-2xl bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06] overflow-hidden">
+                                {/* Batch header */}
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-white/[0.02] border-b border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-gray-500 dark:text-white/40">
+                                            {date ? date.toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs font-bold text-[#7C3AED] dark:text-[#a78bfa]">
+                                        Total: ₱{total.toFixed(0)}
+                                    </span>
+                                </div>
+
+                                {/* Items */}
+                                <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
+                                    {items.map((reservation) => (
+                                        <ReservationRow
+                                            key={reservation.id}
+                                            reservation={reservation}
+                                            onUpdateServings={onUpdateServings}
+                                            onCancel={onCancel}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* Auto-refresh note */}
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-white/30">
+                <RefreshCw className="w-3 h-3" />
+                Auto-refreshes every 15 seconds
+            </div>
+        </div>
+    )
+}
+
+
+// ---------------------------------------------------------------------------
+// Reservation Row (inside MyReservationsView)
+// ---------------------------------------------------------------------------
+function ReservationRow({
+    reservation,
+    onUpdateServings,
+    onCancel,
+}: {
+    reservation: MyReservation
+    onUpdateServings: (id: number, servings: number) => void
+    onCancel: (id: number) => void
+}) {
+    const [isUpdating, setIsUpdating] = useState(false)
+    const item = reservation.food_menu_item
+    const price = item?.price ? item.price / 100 : 0
+    const imageUrl = item?.image || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800"
+
+    const handleServingsChange = async (delta: number) => {
+        const newServings = reservation.servings + delta
+        if (newServings < 1) return
+        setIsUpdating(true)
+        try {
+            await onUpdateServings(reservation.id, newServings)
+        } finally {
+            setIsUpdating(false)
+        }
+    }
+
+    return (
+        <div className={`px-4 py-3 flex items-center gap-3 ${reservation.status === "cancelled" ? "opacity-50" : ""}`}>
+            {/* Image */}
+            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 dark:bg-white/[0.04]">
+                <Image src={imageUrl} alt={item?.name || "Food"} width={48} height={48} className="w-full h-full object-cover" />
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{item?.name || "Unknown"}</span>
+                    <StatusBadge status={reservation.status} />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-white/40">
+                    <span>{reservation.servings} serving{reservation.servings !== 1 ? "s" : ""}</span>
+                    <span>·</span>
+                    <span className="font-semibold text-gray-700 dark:text-white/60">₱{(price * reservation.servings).toFixed(0)}</span>
+                </div>
+                {reservation.notes && (
+                    <p className="text-[10px] text-gray-400 dark:text-white/30 mt-0.5 truncate">Note: {reservation.notes}</p>
+                )}
+                {reservation.status === "confirmed" && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" /> Confirmed by vendor
+                    </p>
+                )}
+            </div>
+
+            {/* Actions (only for pending) */}
+            {reservation.is_editable && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/[0.06] rounded-lg p-0.5">
+                        <button
+                            onClick={() => handleServingsChange(-1)}
+                            disabled={isUpdating || reservation.servings <= 1}
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-white dark:hover:bg-white/10 disabled:opacity-30 transition-colors"
+                        >
+                            <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-xs font-bold text-gray-700 dark:text-white/80 w-5 text-center tabular-nums">
+                            {reservation.servings}
+                        </span>
+                        <button
+                            onClick={() => handleServingsChange(1)}
+                            disabled={isUpdating}
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-white dark:hover:bg-white/10 disabled:opacity-30 transition-colors"
+                        >
+                            <Plus className="w-3 h-3" />
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => onCancel(reservation.id)}
+                        disabled={isUpdating}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-30 transition-colors"
+                        title="Cancel reservation"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
         </div>
     )
 }
@@ -678,7 +861,9 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
     const [searchQuery, setSearchQuery] = useState("")
     const [reservations, setReservations] = useState<ReservationItem[]>([])
     const [showPanel, setShowPanel] = useState(false)
-    const [confirmed, setConfirmed] = useState(false)
+    const [viewMode, setViewMode] = useState<"menu" | "my-reservations">("menu")
+    const [myReservations, setMyReservations] = useState<MyReservation[]>([])
+    const [isLoadingMyReservations, setIsLoadingMyReservations] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
     const [buyer, setBuyer] = useState<BuyerUser | null>(null)
     const [showAuthModal, setShowAuthModal] = useState(false)
@@ -723,6 +908,33 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
         loadMenu()
     }, [])
 
+    const fetchMyReservations = useCallback(async () => {
+        const buyerToken = localStorage.getItem(BUYER_TOKEN_KEY)
+        if (!buyerToken) return
+        setIsLoadingMyReservations(true)
+        try {
+            const response = await fetch(
+                `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/my-reservations`,
+                { headers: { Authorization: `Bearer ${buyerToken}` } }
+            )
+            if (response.ok) {
+                const json = await response.json()
+                const data: MyReservation[] = json?.data?.data ?? json?.data ?? json ?? []
+                if (Array.isArray(data)) setMyReservations(data)
+            }
+        } catch { /* ignore */ } finally {
+            setIsLoadingMyReservations(false)
+        }
+    }, [storeSlug])
+
+    // Poll my-reservations every 15s when viewing them
+    useEffect(() => {
+        if (viewMode !== "my-reservations" || !buyer) return
+        fetchMyReservations()
+        const interval = setInterval(fetchMyReservations, 15000)
+        return () => clearInterval(interval)
+    }, [viewMode, buyer, fetchMyReservations])
+
     const today = new Date()
     const dateStr = today.toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
 
@@ -762,32 +974,74 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
             const headers: Record<string, string> = { "Content-Type": "application/json" }
             if (buyerToken) headers["Authorization"] = `Bearer ${buyerToken}`
 
-            await Promise.all(
-                reservations.map((r) =>
-                    fetch(`${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/reserve`, {
-                        method: "POST",
-                        headers,
-                        body: JSON.stringify({
-                            food_menu_item_id: Number(r.food.id),
-                            customer_name: buyer.name,
-                            customer_phone: "N/A",
-                            servings: r.qty,
-                        }),
-                    })
-                )
-            )
+            const response = await fetch(`${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/reserve-batch`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    customer_name: buyer.name,
+                    customer_phone: "N/A",
+                    items: reservations.map((r) => ({
+                        food_menu_item_id: Number(r.food.id),
+                        servings: r.qty,
+                    })),
+                }),
+            })
+
+            if (response.ok) {
+                setReservations([])
+                setShowPanel(false)
+                setViewMode("my-reservations")
+            }
         } catch {
-            // If API fails, still show confirmation
+            // If API fails, still clear and show reservations view
+            setReservations([])
+            setShowPanel(false)
+            setViewMode("my-reservations")
         } finally {
             setIsSubmittingReservation(false)
         }
-        setConfirmed(true)
-        setShowPanel(false)
     }
 
-    const handleConfirmClose = () => {
-        setConfirmed(false)
-        setReservations([])
+    const handleUpdateServings = async (reservationId: number, newServings: number) => {
+        const buyerToken = localStorage.getItem(BUYER_TOKEN_KEY)
+        if (!buyerToken) return
+        try {
+            const response = await fetch(
+                `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/reservations/${reservationId}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${buyerToken}`,
+                    },
+                    body: JSON.stringify({ servings: newServings }),
+                }
+            )
+            if (response.ok) {
+                setMyReservations((prev) =>
+                    prev.map((r) => r.id === reservationId ? { ...r, servings: newServings } : r)
+                )
+            }
+        } catch { /* ignore */ }
+    }
+
+    const handleCancelReservation = async (reservationId: number) => {
+        const buyerToken = localStorage.getItem(BUYER_TOKEN_KEY)
+        if (!buyerToken) return
+        try {
+            const response = await fetch(
+                `${env.api.baseUrl}/ecommerce/stores/${storeSlug}/food-menu/reservations/${reservationId}`,
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${buyerToken}` },
+                }
+            )
+            if (response.ok) {
+                setMyReservations((prev) =>
+                    prev.map((r) => r.id === reservationId ? { ...r, status: "cancelled" as const, is_editable: false } : r)
+                )
+            }
+        } catch { /* ignore */ }
     }
 
     const handleAuthSuccess = (user: BuyerUser) => {
@@ -800,6 +1054,8 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
         localStorage.removeItem(BUYER_USER_KEY)
         setBuyer(null)
         setReservations([])
+        setViewMode("menu")
+        setMyReservations([])
         window.dispatchEvent(new Event("storage"))
     }
 
@@ -840,6 +1096,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
 
                                     {/* Logged-in user chip */}
                                     {isMounted && buyer ? (
+                                        <>
                                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.08] border border-white/[0.12]">
                                             <div className="w-6 h-6 rounded-md bg-[#7C3AED] flex items-center justify-center text-white text-[10px] font-black shrink-0">
                                                 {buyer.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
@@ -853,6 +1110,18 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                                                 <LogOut className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
+                                        <button
+                                            onClick={() => setViewMode(viewMode === "my-reservations" ? "menu" : "my-reservations")}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                                viewMode === "my-reservations"
+                                                    ? "bg-[#7C3AED]/30 border border-[#7C3AED]/50 text-purple-200"
+                                                    : "bg-white/[0.06] border border-white/[0.10] text-white/60 hover:text-white/90 hover:bg-white/[0.10]"
+                                            }`}
+                                        >
+                                            <ShoppingBag className="w-3.5 h-3.5" />
+                                            My Reservations
+                                        </button>
+                                        </>
                                     ) : isMounted ? (
                                         <button
                                             onClick={() => setShowAuthModal(true)}
@@ -913,6 +1182,21 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                 className={`transition-all duration-700 delay-100 ${menuReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
             >
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                    {/* ── My Reservations View ────────────────────── */}
+                    {viewMode === "my-reservations" && buyer && (
+                        <MyReservationsView
+                            reservations={myReservations}
+                            isLoading={isLoadingMyReservations}
+                            onBack={() => setViewMode("menu")}
+                            onRefresh={fetchMyReservations}
+                            onUpdateServings={handleUpdateServings}
+                            onCancel={handleCancelReservation}
+                        />
+                    )}
+
+                    {/* ── Menu + Panel View ───────────────────────── */}
+                    {viewMode === "menu" && (
                     <div className="flex gap-6">
 
                         {/* ── Left: Menu ─────────────────────────────── */}
@@ -1003,11 +1287,12 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                             </div>
                         </aside>
                     </div>
+                    )}
                 </div>
             </div>
 
             {/* ── Mobile floating reserve button ───────────────────── */}
-            {isMounted && (
+            {isMounted && viewMode === "menu" && (
                 <div className="lg:hidden fixed bottom-6 right-4 z-40">
                     <button
                         onClick={() => setShowPanel(true)}
@@ -1025,7 +1310,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
             )}
 
             {/* ── Mobile reservation bottom sheet ──────────────────── */}
-            {isMounted && showPanel && (
+            {isMounted && showPanel && viewMode === "menu" && (
                 <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPanel(false)} />
                     <div className="relative bg-white dark:bg-[#110228] rounded-t-3xl border-t border-gray-100 dark:border-white/[0.06] shadow-2xl" style={{ maxHeight: "80vh" }}>
@@ -1045,10 +1330,7 @@ export default function FoodMenuPage({ params }: { params: Promise<{ store: stri
                 </div>
             )}
 
-            {/* ── Confirmation modal ────────────────────────────────── */}
-            {confirmed && (
-                <ConfirmationModal items={reservations} buyer={buyer} onClose={handleConfirmClose} />
-            )}
+            {/* ── (ConfirmationModal removed — replaced by MyReservationsView inline) ── */}
 
             {/* ── Auth modal ────────────────────────────────────────── */}
             {showAuthModal && (
