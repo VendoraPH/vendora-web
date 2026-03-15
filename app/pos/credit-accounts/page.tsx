@@ -325,11 +325,11 @@ export default function CreditAccountsPage() {
 
     const stats = useMemo(() => {
         const totalAccounts = groupedAccounts.length
-        const activeAccounts = groupedAccounts.filter(g => g.status === 'active').length
-        const overdueAccounts = groupedAccounts.filter(g => g.status === 'overdue').length
+        const activeAccounts = accounts.filter(a => a.status === 'active').length
+        const overdueAccounts = accounts.filter(a => a.status === 'overdue').length
         const totalOutstanding = groupedAccounts.reduce((sum, g) => sum + g.remainingBalance, 0)
         return { totalAccounts, activeAccounts, overdueAccounts, totalOutstanding }
-    }, [groupedAccounts])
+    }, [accounts, groupedAccounts])
 
     const handleAddPayment = (account: CreditAccount) => {
         setSelectedAccount(account)
