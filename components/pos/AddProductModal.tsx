@@ -294,8 +294,16 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
         }
     }
 
+    const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/heic", "image/heif"]
+    const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".heic", ".heif"]
+
     const handleImageSelect = (file?: File | null) => {
         if (!file) return
+        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."))
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type) && !ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+            setActionError("Only PNG, JPEG, and HEIC/HEIF images are allowed.")
+            return
+        }
         setCameraNotice("")
         setImageFile(file)
         setImageName(file.name)
@@ -537,7 +545,7 @@ export function AddProductModal({ open, onOpenChange, onSuccess }: AddProductMod
                                 <input
                                     ref={galleryInputRef}
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/jpg,image/heic,image/heif,.heic,.heif"
                                     className="hidden"
                                     onChange={(e) => handleImageSelect(e.target.files?.[0])}
                                 />
