@@ -54,8 +54,8 @@ export interface POSScreenProps {
   setBarcodeInput: (value: string) => void;
   category: string;
   setCategory: (value: string) => void;
-  customer: "walkin" | "saved1" | "saved2";
-  setCustomer: (value: "walkin" | "saved1" | "saved2") => void;
+  customer: string;
+  setCustomer: (value: string) => void;
   notes: string;
   setNotes: (value: string) => void;
   filtered: POSProduct[];
