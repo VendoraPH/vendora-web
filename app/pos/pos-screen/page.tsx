@@ -340,7 +340,7 @@ export default function VendoraPOS() {
         const orderCustomerMap = new Map<string, ApiCustomer>();
         for (const o of localOrders) {
           const name = o.customer_name?.trim();
-          if (name && name.toLowerCase() !== 'walk-in customer') {
+          if (name && !name.toLowerCase().startsWith('walk-in') && !name.toLowerCase().startsWith('walk in')) {
             const key = name.toLowerCase();
             if (!orderCustomerMap.has(key)) {
               orderCustomerMap.set(key, {
