@@ -115,17 +115,17 @@ export default function DesktopDashboard() {
       icon: CreditCard,
     },
     {
-      title: "Total Orders",
-      value: kpis.total_orders.toString(),
-      ...formatChange(kpis.total_orders_change),
-      icon: ShoppingBag,
-    },
-    {
       title: "Net Revenue",
       value: formatCurrency(kpis.net_revenue),
       change: "Total markup",
       changeType: "label" as const,
       icon: Wallet,
+    },
+    {
+      title: "Total Orders",
+      value: kpis.total_orders.toString(),
+      ...formatChange(kpis.total_orders_change),
+      icon: ShoppingBag,
     },
     {
       title: "Items Sold",
