@@ -114,6 +114,20 @@ const initialForm: ItemForm = {
   isAvailable: true,
 }
 
+function formatDateTime(iso: string): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  return d.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
 // ─── API → UI Mapping Helpers ────────────────────────────────────────────────
 
 function mapApiFoodMenuItem(item: ApiFoodMenuItem): MenuItem {
@@ -526,13 +540,15 @@ export default function FoodMenuPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Food Menu</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your menu &amp; reservations</p>
         </div>
-        <Button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6d28d9] text-white shadow-sm shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          Add Item
-        </Button>
+        {activeTab === "items" && (
+          <Button
+            onClick={openAdd}
+            className="flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6d28d9] text-white shadow-sm shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Add Item
+          </Button>
+        )}
       </div>
 
       {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
@@ -1060,12 +1076,12 @@ export default function FoodMenuPage() {
                       <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900 dark:text-white">{r.employeeName}</p>
-                          <p className="text-xs text-gray-400">{r.phone}</p>
+                          {r.phone && <p className="text-xs text-gray-400">{r.phone}</p>}
                         </td>
                         <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.menuItemName}</td>
                         <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{r.servings}</td>
                         <td className="px-4 py-3 text-right font-semibold text-[#7C3AED]">{formatCurrency(r.total)}</td>
-                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{r.createdAt}</td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{formatDateTime(r.createdAt)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(r.status)}`}>
                             {r.status}
@@ -1083,7 +1099,7 @@ export default function FoodMenuPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">{r.employeeName}</p>
-                        <p className="text-xs text-gray-400">{r.phone}</p>
+                        {r.phone && <p className="text-xs text-gray-400">{r.phone}</p>}
                       </div>
                       <span className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(r.status)}`}>
                         {r.status}
@@ -1097,7 +1113,7 @@ export default function FoodMenuPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">{r.createdAt}</span>
+                      <span className="text-xs text-gray-400">{formatDateTime(r.createdAt)}</span>
                       <span className="font-bold text-[#7C3AED]">{formatCurrency(r.total)}</span>
                     </div>
                     {r.notes && (
