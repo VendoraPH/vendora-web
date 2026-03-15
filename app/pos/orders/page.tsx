@@ -163,7 +163,7 @@ function DesktopOrdersLayout() {
         o => o.order_number === orderId || String(o.id) === orderId
       )
 
-      if (localOrder) {
+      if (localOrder && localOrder.items && localOrder.items.length > 0) {
         // Local DB stores values in cents — formatCurrency handles conversion
         setOrderDetails({
           id: localOrder.id,
@@ -177,7 +177,7 @@ function DesktopOrdersLayout() {
           discount: Number(localOrder.discount || 0),
           delivery_fee: Number(localOrder.delivery_fee || 0),
           payment_method: localOrder.payment_method,
-          items: (localOrder.items || []).map(item => ({
+          items: localOrder.items.map(item => ({
             name: item.product_name || `Product #${item.product_id}`,
             product: { name: item.product_name || `Product #${item.product_id}` },
             quantity: item.quantity,
@@ -188,13 +188,33 @@ function DesktopOrdersLayout() {
         return
       }
 
-      // Fallback: API call only for real server numeric IDs
-      const numericId = Number(orderId.replace(/\D/g, '') || 0)
+      // Fallback: API call for server-synced orders (get full details with items)
+      const numericId = localOrder
+        ? Number(localOrder.id)
+        : Number(orderId.replace(/\D/g, '') || 0)
       if (numericId && numericId < 1_000_000) {
         const response = await api.get(posOrderEndpoints.get(numericId))
         setOrderDetails(normalizeOrderDetails(response))
       } else {
-        setOrderDetails(null)
+        // Local-only order with no items — show what we have
+        if (localOrder) {
+          setOrderDetails({
+            id: localOrder.id,
+            order_number: localOrder.order_number,
+            customer: localOrder.customer_name || "Walk-in Customer",
+            ordered_at: localOrder.ordered_at,
+            status: localOrder.status,
+            total: Number(localOrder.total || 0),
+            subtotal: Number(localOrder.subtotal || localOrder.total || 0),
+            tax: Number(localOrder.tax || 0),
+            discount: Number(localOrder.discount || 0),
+            delivery_fee: Number(localOrder.delivery_fee || 0),
+            payment_method: localOrder.payment_method,
+            items: [],
+          })
+        } else {
+          setOrderDetails(null)
+        }
       }
     } catch (error) {
       console.error("Failed to load order details:", error)
