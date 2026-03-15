@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Image as ImageIcon,
   X,
+  Check,
 } from "lucide-react"
 import Swal from "sweetalert2"
 import { foodMenuService } from "@/services"
@@ -491,6 +492,34 @@ export default function FoodMenuPage() {
       setMenuItems((prev) =>
         prev.map((item) => item.id === id ? { ...item, isAvailable: current.isAvailable } : item)
       )
+    }
+  }
+
+  // ── Reservation status change ───────────────────────────────────────────────
+  const [updatingReservationId, setUpdatingReservationId] = useState<number | null>(null)
+
+  const handleReservationStatusChange = async (reservationId: number, newStatus: "confirmed" | "cancelled") => {
+    const action = newStatus === "confirmed" ? "confirm" : "cancel"
+    const result = await Swal.fire({
+      icon: "question",
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} reservation?`,
+      text: `This will ${action} the reservation.`,
+      showCancelButton: true,
+      confirmButtonColor: newStatus === "confirmed" ? "#10b981" : "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: `Yes, ${action} it`,
+    })
+    if (!result.isConfirmed) return
+
+    setUpdatingReservationId(reservationId)
+    try {
+      await foodMenuService.updateReservationStatus(reservationId, newStatus)
+      refresh()
+      Swal.fire({ icon: "success", title: newStatus === "confirmed" ? "Confirmed!" : "Cancelled!", timer: 1500, showConfirmButton: false })
+    } catch {
+      Swal.fire({ icon: "error", title: "Failed", text: `Could not ${action} the reservation.`, confirmButtonColor: "#7C3AED" })
+    } finally {
+      setUpdatingReservationId(null)
     }
   }
 
@@ -1069,6 +1098,7 @@ export default function FoodMenuPage() {
                       <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Date &amp; Time</th>
                       <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Status</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-white/5">
@@ -1086,6 +1116,32 @@ export default function FoodMenuPage() {
                           <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(r.status)}`}>
                             {r.status}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {r.status === "Pending" ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleReservationStatusChange(r.id, "confirmed")}
+                                disabled={updatingReservationId === r.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                title="Confirm reservation"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => handleReservationStatusChange(r.id, "cancelled")}
+                                disabled={updatingReservationId === r.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                title="Cancel reservation"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1118,6 +1174,26 @@ export default function FoodMenuPage() {
                     </div>
                     {r.notes && (
                       <p className="text-xs text-gray-400 border-t border-gray-100 dark:border-white/5 pt-2">Note: {r.notes}</p>
+                    )}
+                    {r.status === "Pending" && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                        <button
+                          onClick={() => handleReservationStatusChange(r.id, "confirmed")}
+                          disabled={updatingReservationId === r.id}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => handleReservationStatusChange(r.id, "cancelled")}
+                          disabled={updatingReservationId === r.id}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Cancel
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
