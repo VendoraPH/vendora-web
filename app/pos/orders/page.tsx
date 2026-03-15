@@ -614,7 +614,7 @@ function DesktopOrdersLayout() {
                       <tbody>
                         {orderDetails.items?.map((item: any, idx: number) => (
                           <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3 text-sm text-white">{item.product?.name || item.name || "Product"}</td>
+                            <td className="px-4 py-3 text-sm text-white">{item.product_name || item.product?.name || item.name || "Product"}</td>
                             <td className="px-4 py-3 text-sm text-white/80 text-center">{item.quantity}</td>
                             <td className="px-4 py-3 text-sm text-white/80 text-right">{formatCurrency(Number(item.price || 0))}</td>
                             <td className="px-4 py-3 text-sm text-white font-medium text-right">
@@ -758,7 +758,7 @@ function DesktopOrdersLayout() {
                     <tbody>
                       {orderDetails.items?.map((item: any, idx: number) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                          <td style={{ padding: '10px 8px', fontSize: '11px', color: '#000' }}>{item.product?.name || item.name || "Product"}</td>
+                          <td style={{ padding: '10px 8px', fontSize: '11px', color: '#000' }}>{item.product_name || item.product?.name || item.name || "Product"}</td>
                           <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'center', color: '#000', fontWeight: '600' }}>{item.quantity}</td>
                           <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', color: '#000' }}>{formatCurrency(Number(item.price || 0))}</td>
                           <td style={{ padding: '10px 8px', fontSize: '11px', textAlign: 'right', fontWeight: '600', color: '#000' }}>{formatCurrency(Number(item.quantity) * Number(item.price || 0))}</td>
